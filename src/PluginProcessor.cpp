@@ -1,5 +1,6 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include <bit>
 namespace {
 template<size_t N> juce::StringArray strings(const std::array<const char*,N>& names){juce::StringArray out;for(auto n:names)out.add(n);return out;}
 }
@@ -93,8 +94,8 @@ void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffe
 }
 namespace {
 void writeSettings(juce::ValueTree& v,const wee::Settings&s){v.setProperty("bars",s.bars,nullptr);v.setProperty("key",s.key,nullptr);v.setProperty("scale",s.scale,nullptr);v.setProperty("style",s.style,nullptr);v.setProperty("seed",juce::int64(s.seed),nullptr);v.setProperty("bpm",s.bpm,nullptr);}
-void writeNotes(juce::ValueTree& v,const wee::Composition&c){v.setProperty("seed",juce::int64(c.settings.seed),nullptr);for(auto& n:c.notes){juce::ValueTree note("Note");note.setProperty("beat",n.beat,nullptr);note.setProperty("length",n.length,nullptr);note.setProperty("pitch",n.pitch,nullptr);note.setProperty("velocity",n.velocity,nullptr);v.appendChild(note,nullptr);}}
-bool readNotes(const juce::ValueTree&v,wee::Composition&c){if(v.getNumChildren()>2048)return false;for(auto n:v){wee::Note note{double(n["beat"]),double(n["length"]),int(n["pitch"]),int(n["velocity"])};if(!n.hasType("Note")||!std::isfinite(note.beat)||!std::isfinite(note.length)||note.beat<0||note.length<=0||note.beat+note.length>c.settings.bars*4+1.0e-8||note.pitch<0||note.pitch>127||note.velocity<1||note.velocity>127)return false;c.notes.push_back(note);}wee::sort(c);return true;}
+void writeNotes(juce::ValueTree& v,const wee::Composition&c){v.setProperty("seed",juce::int64(c.settings.seed),nullptr);for(auto& n:c.notes){juce::ValueTree note("Note");note.setProperty("beat",n.beat,nullptr);note.setProperty("length",n.length,nullptr);note.setProperty("beatBits",juce::String::toHexString(juce::int64(std::bit_cast<uint64_t>(n.beat))),nullptr);note.setProperty("lengthBits",juce::String::toHexString(juce::int64(std::bit_cast<uint64_t>(n.length))),nullptr);note.setProperty("pitch",n.pitch,nullptr);note.setProperty("velocity",n.velocity,nullptr);v.appendChild(note,nullptr);}}
+bool readNotes(const juce::ValueTree&v,wee::Composition&c){if(v.getNumChildren()>2048)return false;for(auto n:v){wee::Note note{double(n["beat"]),double(n["length"]),int(n["pitch"]),int(n["velocity"])};if(n.hasProperty("beatBits"))note.beat=std::bit_cast<double>(uint64_t(n["beatBits"].toString().getHexValue64()));if(n.hasProperty("lengthBits"))note.length=std::bit_cast<double>(uint64_t(n["lengthBits"].toString().getHexValue64()));if(!n.hasType("Note")||!std::isfinite(note.beat)||!std::isfinite(note.length)||note.beat<0||note.length<=0||note.beat+note.length>c.settings.bars*4+1.0e-8||note.pitch<0||note.pitch>127||note.velocity<1||note.velocity>127)return false;c.notes.push_back(note);}wee::sort(c);return true;}
 }
 void WeeProcessor::getStateInformation(juce::MemoryBlock&out){auto tree=params.copyState();tree.setProperty("version",2,nullptr);tree.setProperty("nextSeed",juce::int64(seed.load()),nullptr);auto a=snapshotArrangement();juce::ValueTree song("Arrangement");writeSettings(song,a.context);for(int i=0;i<8;++i){juce::ValueTree layer("Layer");layer.setProperty("index",i,nullptr);writeNotes(layer,a.layers[size_t(i)]);song.appendChild(layer,nullptr);}tree.appendChild(song,nullptr);auto xml=tree.createXml();copyXmlToBinary(*xml,out);}
 void WeeProcessor::setStateInformation(const void*data,int size){
