@@ -31,6 +31,7 @@ private:
  WeeProcessor&p;juce::LookAndFeel_V4 look;
  juce::ComboBox style,key,scale,bars;juce::Slider bpm,volume;juce::ToggleButton sync{"Host sync"};
  juce::TextButton generate{"GENERATE"},play{"PLAY"},save{"SAVE ALL MIDI"},undo{"UNDO"},redo{"REDO"};MidiDragButton drag;
+ juce::Component mixerContent;juce::Viewport mixerViewport;
  std::array<std::unique_ptr<LayerRow>,8> rows;
  using CA=juce::AudioProcessorValueTreeState::ComboBoxAttachment;using SA=juce::AudioProcessorValueTreeState::SliderAttachment;
  std::unique_ptr<CA>aStyle,aKey,aScale,aBars;std::unique_ptr<SA>aBpm,aVolume;std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>aSync;

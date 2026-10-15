@@ -1,5 +1,6 @@
 #include "../src/PluginProcessor.h"
 #include "../src/Export/Midi.h"
+#include "../src/PluginEditor.h"
 #include <iostream>
 #include <stdexcept>
 static void require(bool b,const char* msg){if(!b)throw std::runtime_error(msg);}
@@ -51,5 +52,15 @@ juce::MemoryBlock state;p.getStateInformation(state);p.generate();require(p.snap
  for(int i=0;i<8;++i)for(int j=0;j<i;++j)require(std::abs(signatures[size_t(i)]-signatures[size_t(j)])>0.0001,"distinct instrument timbres");
  // Hard-left pan routes audio exclusively to the left output after smoothing.
  WeeProcessor pan;set(pan,WeeProcessor::layerId(0,"pan"),-1);pan.setRateAndBufferSizeDetails(48000,256);pan.prepareToPlay(48000,256);midi.clear();midi.addEvent(juce::MidiMessage::noteOn(1,60,(juce::uint8)100),0);pan.processBlock(buffer,midi);double le=0,re=0;for(int i=0;i<256;++i){le+=std::abs(buffer.getSample(0,i));re+=std::abs(buffer.getSample(1,i));}require(le>0&&re==0,"equal-power layer pan");
+
+ // All-layer playback and mixer muting exercise the actual rendering path, not just its masks.
+ WeeProcessor mix;for(int i=0;i<8;++i)set(mix,WeeProcessor::layerId(i,"enabled"),1);mix.setRateAndBufferSizeDetails(48000,256);mix.prepareToPlay(48000,256);mix.preview=true;double mixedEnergy=0;for(int block=0;block<600;++block){midi.clear();mix.processBlock(buffer,midi);mixedEnergy+=energy(buffer);}require(mixedEnergy>1,"eight-layer audio render");
+ for(int i=0;i<8;++i)set(mix,WeeProcessor::layerId(i,"mute"),1);for(int block=0;block<30;++block){midi.clear();mix.processBlock(buffer,midi);}require(energy(buffer)<1.0e-10,"all layer mutes silence actual audio");
+ // A host may deliver larger blocks than advertised; the preallocated chunk path must work.
+ juce::AudioBuffer<float> oversized(2,1024);midi.clear();pan.processBlock(oversized,midi);require(energy(oversized)>0,"oversized block chunk rendering");
+ // Bad state is rejected atomically, preserving unsaved generated content.
+ auto good=layers.snapshotArrangement();auto badXml=juce::AudioProcessor::getXmlFromBinary(layerState.getData(),int(layerState.getSize()));auto malformed=juce::ValueTree::fromXml(*badXml);malformed.getChildWithName("Arrangement").getChild(0).getChild(0).setProperty("pitch",999,nullptr);auto invalidXml=malformed.createXml();juce::MemoryBlock invalid;juce::AudioProcessor::copyXmlToBinary(*invalidXml,invalid);layers.setStateInformation(invalid.getData(),int(invalid.getSize()));require(layers.snapshot().notes==good.layers[0].notes,"invalid state preserves content");
+ // Construct, resize and destroy the editor at its compact and large sizes.
+ {std::unique_ptr<juce::AudioProcessorEditor> editor(layers.createEditor());editor->setSize(850,650);editor->setSize(1600,1250);}
  std::cout<<"PASS: MIDI input piano, generation, state round-trip, preview audio and stop\n";
  }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}return 0;}
