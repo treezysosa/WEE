@@ -13,6 +13,7 @@ Copy-Item 'scripts/Install-WEE.cmd' "$package/Install-WEE.cmd" -Force
 Copy-Item 'docs/WINDOWS-DOWNLOAD.md' "$package/READ-ME.txt" -Force
 Copy-Item 'LICENSE' "$package/LICENSE.txt" -Force
 Copy-Item 'build/_deps/juce-src/LICENSE.md' "$package/JUCE-LICENSE.md" -Force
+"Corresponding WEE source: https://github.com/treezysosa/WEE/tree/$env:GITHUB_SHA`nJUCE source: https://github.com/juce-framework/JUCE/tree/8.0.6" | Set-Content "$package/SOURCE-URL.txt"
 Get-ChildItem $package -Recurse -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
  '{0}  {1}' -f $_.Hash, $_.Path.Substring((Resolve-Path $package).Path.Length + 1)
 } | Set-Content "$package/SHA256SUMS.txt"

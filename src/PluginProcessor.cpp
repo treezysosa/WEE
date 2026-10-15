@@ -15,10 +15,10 @@ wee::Composition WeeProcessor::snapshot(){const juce::SpinLock::ScopedLockType l
 void WeeProcessor::replace(wee::Composition c){const juce::SpinLock::ScopedLockType l(contentLock);content=std::move(c);}
 void WeeProcessor::prepareToPlay(double sr,int){synth.setCurrentPlaybackSampleRate(sr);gain.reset(sr,0.02);gain.setCurrentAndTargetValue(*params.getRawParameterValue("gain"));previewBeat=0;wasPlaying=false;}
 void WeeProcessor::processBlock(juce::AudioBuffer<float>& audio,juce::MidiBuffer& midi){
- juce::ScopedNoDenormals dn;audio.clear();bool host=false;double beat=previewBeat,bpm=*params.getRawParameterValue("bpm");bool bad=false;
+ juce::ScopedNoDenormals dn;audio.clear();if(getSampleRate()<=0 || audio.getNumSamples()==0){midi.clear();return;}bool host=false;double beat=previewBeat,bpm=*params.getRawParameterValue("bpm");bool bad=false;
  if(*params.getRawParameterValue("sync")>0.5f)if(auto* ph=getPlayHead())if(auto pos=ph->getPosition()){
-  host=pos->getIsPlaying();if(auto t=pos->getBpm())if(std::isfinite(*t)&&*t>0)bpm=*t;
-  if(host)if(auto p=pos->getPpqPosition())beat=*p;
+  host=pos->getIsPlaying();if(auto t=pos->getBpm())if(std::isfinite(*t)&&*t>0)bpm=juce::jlimit(20.0,999.0,*t);
+  if(host)if(auto p=pos->getPpqPosition())if(std::isfinite(*p))beat=*p;
   if(auto ts=pos->getTimeSignature())bad=ts->numerator!=4||ts->denominator!=4;
  }
  tempo=bpm;unsupportedMeter=bad;bool playing=(host||preview.load())&&!bad;
