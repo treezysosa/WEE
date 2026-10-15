@@ -15,9 +15,9 @@ If Windows reports a missing Visual C++ runtime, install Microsoft's x64 Visual 
 https://aka.ms/vs/17/release/vc_redist.x64.exe
 This development build is unsigned. SmartScreen may identify an unknown publisher.
 
-Implemented in this Phase 1 build: seeded 8/16-bar melody generation, three starter styles, synthesized piano, host sync, internal preview, MIDI file save/drag, generation undo/redo, automation and project state.
-Not yet implemented: WAV export, WEE FLIP, layers, additional instruments, preset files and piano-roll editing. FL Studio manual compatibility testing is still required.
+Phase 2 build: eight shared-harmony layers, eight synthesized instruments, nine styles, enable/mute/solo, volume/pan, layer locking and isolated regeneration, per-layer and multitrack MIDI export, complete generation undo/redo, host sync, automation and versioned project state. Only Lead is enabled initially; turn other layers ON. Click a layer name to inspect it.
+Not yet implemented: WAV/stem export, effects, WEE FLIP, preset files and piano-roll editing. FL Studio manual compatibility testing is still required.
 
-To export: SAVE MIDI then drag the saved .mid into FL Studio Piano Roll, or use Piano Roll's MIDI import. DRAG MIDI attempts native file dragging; saving to disk is the reliable fallback.
+To export: SAVE ALL MIDI then drag the saved .mid into FL Studio Piano Roll, or use Piano Roll's MIDI import. DRAG MIDI attempts native file dragging; saving to disk is the reliable fallback. Full export follows enable/mute/solo; each layer MIDI button exports its notes independently. Global generation refuses key/scale/style/length changes while notes are locked, preserving your existing music.
 
 The GitHub Actions build runs automated composition/MIDI, audio and state tests. It does not run FL Studio. JUCE is licensed separately; see JUCE-LICENSE.md.

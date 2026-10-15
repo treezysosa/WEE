@@ -19,10 +19,27 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: Identify runner image
+        id: image
+        shell: pwsh
+        run: '"version=$env:ImageVersion" >> $env:GITHUB_OUTPUT'
+      - name: Restore compiled JUCE dependencies
+        id: cache
+        uses: actions/cache/restore@v4
+        with:
+          path: build
+          key: wee-vs2022-${{ steps.image.outputs.version }}-${{ hashFiles('CMakeLists.txt') }}
       - name: Configure Visual Studio 2022
         run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
       - name: Build VST3, standalone and tests
+        id: compile
         run: cmake --build build --config Release --parallel 2
+      - name: Cache successful compilation
+        if: steps.compile.outcome == 'success' && steps.cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build
+          key: ${{ steps.cache.outputs.cache-primary-key }}
       - name: Run generation, MIDI, audio and state tests
         run: ctest --test-dir build -C Release --output-on-failure
       - name: Assemble installable Windows package
