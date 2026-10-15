@@ -1,0 +1,54 @@
+name: Windows VST3 build
+on:
+  push:
+    paths-ignore:
+      - "docs/**"
+      - "README.md"
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    name: MSVC 2022 x64 Release
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Visual Studio 2022
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build VST3, standalone and tests
+        run: cmake --build build --config Release --parallel 2
+      - name: Run generation, MIDI, audio and state tests
+        run: ctest --test-dir build -C Release --output-on-failure
+      - name: Assemble installable Windows package
+        shell: pwsh
+        run: ./scripts/package-windows.ps1
+      - name: Verify installer on the clean Windows runner
+        shell: pwsh
+        run: |
+          ./dist/WEE-Windows-x64/Install-WEE.ps1
+          $installed = Join-Path $env:CommonProgramFiles 'VST3/WEE.vst3/Contents/x86_64-win/WEE.vst3'
+          if (!(Test-Path $installed)) { throw 'Installer did not create the VST3 binary' }
+          $sourceHash = (Get-FileHash 'dist/WEE-Windows-x64/WEE.vst3/Contents/x86_64-win/WEE.vst3').Hash
+          if ((Get-FileHash $installed).Hash -ne $sourceHash) { throw 'Installed binary differs from build' }
+          ./dist/WEE-Windows-x64/Install-WEE.ps1 -Replace
+          if (!(Get-ChildItem (Join-Path $env:CommonProgramFiles 'VST3') -Filter 'WEE.vst3.backup-*')) { throw 'Replacement backup missing' }
+      - name: Upload Windows download
+        uses: actions/upload-artifact@v4
+        with:
+          name: WEE-Windows-x64
+          path: dist/WEE-Windows-x64/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: WEE-test-results
+          path: build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
