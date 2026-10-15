@@ -7,4 +7,4 @@ Close FL Studio, open administrator PowerShell, run `./install-vst3.ps1`. Existi
 
 Portable core checks without JUCE: `cmake -S . -B build-core -DWEE_BUILD_PLUGIN=OFF`, `cmake --build build-core`, `ctest --test-dir build-core --output-on-failure`.
 
-Current verification: portable core tested on Linux. JUCE plugin build, Windows MSVC build, standalone launch and FL Studio tests require further verification. No VST3 binary is included.
+Current verification: portable core tested on Linux; Windows Visual Studio 2022 x64 Release builds of VST3, standalone and processor tests passed remotely. Both CTest suites passed. Packaged installer initial installation and replacement backup passed on the Windows runner. See VALIDATION.md for the exact build and artifact. Standalone UI launch, UAC launcher interaction, and FL Studio tests remain manual checks.
