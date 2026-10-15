@@ -3,6 +3,7 @@
 #include <iostream>
 #include <stdexcept>
 static void require(bool b,const char* msg){if(!b)throw std::runtime_error(msg);}
+static void set(WeeProcessor&p,const juce::String&id,float value){auto* param=p.params.getParameter(id);require(param!=nullptr,"parameter exists");param->setValueNotifyingHost(param->convertTo0to1(value));}
 static double energy(juce::AudioBuffer<float>& b){double e=0;for(int c=0;c<b.getNumChannels();++c)for(int i=0;i<b.getNumSamples();++i){auto s=b.getSample(c,i);require(std::isfinite(s),"non-finite audio");e+=s*s;}return e;}
 struct TestPlayHead : juce::AudioPlayHead {
  PositionInfo position;
@@ -31,5 +32,24 @@ juce::MemoryBlock state;p.getStateInformation(state);p.generate();require(p.snap
  restored.preview=false;for(int i=0;i<300;++i){midi.clear();restored.processBlock(buffer,midi);}require(energy(buffer)<0.000001,"stop must release generated voices");
  host.position.setIsPlaying(true);host.position.setBpm(140.0);midi.clear();restored.processBlock(buffer,midi);require(restored.tempo==140.0,"host tempo following");
  host.position.setTimeSignature(juce::AudioPlayHead::TimeSignature{3,4});midi.clear();restored.processBlock(buffer,midi);require(restored.unsupportedMeter,"unsupported meter warning");restored.setPlayHead(nullptr);
+
+ // Version-1 project migration preserves exact notes and keeps new layers disabled.
+ auto legacyTree=p.params.copyState();legacyTree.setProperty("version",1,nullptr);juce::ValueTree legacySong("Song");legacySong.setProperty("bars",original.settings.bars,nullptr);legacySong.setProperty("seed",juce::int64(original.settings.seed),nullptr);legacySong.setProperty("bpm",120.0,nullptr);
+ for(auto&n:original.notes){juce::ValueTree v("Note");v.setProperty("beat",n.beat,nullptr);v.setProperty("length",n.length,nullptr);v.setProperty("pitch",n.pitch,nullptr);v.setProperty("velocity",n.velocity,nullptr);legacySong.appendChild(v,nullptr);}
+ for(int i=legacyTree.getNumChildren()-1;i>=0;--i)if(legacyTree.getChild(i)["id"].toString().startsWith("layer"))legacyTree.removeChild(i,nullptr);
+ legacyTree.appendChild(legacySong,nullptr);juce::MemoryBlock legacy;auto legacyXml=legacyTree.createXml();juce::AudioProcessor::copyXmlToBinary(*legacyXml,legacy);
+ WeeProcessor migrated;migrated.setStateInformation(legacy.getData(),int(legacy.getSize()));require(migrated.snapshot().notes==original.notes,"Phase 1 exact note migration");for(int i=1;i<8;++i)require(!migrated.audibleLayers()[size_t(i)],"new layers disabled in old projects");
+ WeeProcessor layers;auto arrangement=layers.snapshotArrangement();set(layers,WeeProcessor::layerId(0,"lock"),1);require(layers.generate(),"generate with locked lead");require(layers.snapshot().notes==arrangement.layers[0].notes,"locked lead preserved");
+ require(!layers.regenerateLayer(0),"locked layer rejects regeneration");set(layers,"key",2);require(!layers.generate(),"harmonic change blocked with locks");require(layers.snapshotArrangement().context.key==9,"blocked generate preserves harmony");set(layers,"key",9);
+ auto before=layers.snapshotArrangement();require(layers.regenerateLayer(3),"unlocked piano regeneration");auto after=layers.snapshotArrangement();for(int i=0;i<8;++i)if(i!=3)require(before.layers[size_t(i)].notes==after.layers[size_t(i)].notes,"per-layer regeneration isolation");require(before.layers[3].notes!=after.layers[3].notes,"regenerated piano varies");
+ set(layers,WeeProcessor::layerId(2,"enabled"),1);set(layers,WeeProcessor::layerId(2,"solo"),1);auto audible=layers.audibleLayers();require(audible[2]&&!audible[0],"solo isolation");set(layers,WeeProcessor::layerId(2,"mute"),1);require(!layers.audibleLayers()[2],"mute wins over solo");
+ juce::MemoryBlock layerState;layers.getStateInformation(layerState);WeeProcessor recalled;recalled.setStateInformation(layerState.getData(),int(layerState.getSize()));auto recalledSong=recalled.snapshotArrangement();for(int i=0;i<8;++i)require(recalledSong.layers[size_t(i)].notes==after.layers[size_t(i)].notes,"all layer note state recall");require(*recalled.params.getRawParameterValue(WeeProcessor::layerId(0,"lock"))==1,"lock recalled");require(*recalled.params.getRawParameterValue(WeeProcessor::layerId(2,"solo"))==1,"solo recalled");
+ auto multi=wee::midi(after,std::array<bool,8>{true,true,true,true,true,true,true,true});juce::MemoryInputStream multiStream(multi.data(),multi.size(),false);juce::MidiFile multiParsed;require(multiParsed.readFrom(multiStream)&&multiParsed.getNumTracks()==9,"JUCE format-1 multi-layer import");
+ for(int layer=0;layer<8;++layer){int ons=0;const auto*t=multiParsed.getTrack(layer+1);for(int i=0;i<t->getNumEvents();++i){auto&msg=t->getEventPointer(i)->message;if(msg.isNoteOn()){require(msg.getChannel()==layer+1,"separate layer MIDI channel");++ons;}}require(ons==int(after.layers[size_t(layer)].notes.size()),"layer MIDI count");require(t->getEndTime()==after.context.bars*4*960,"layer MIDI duration");}
+ // Every instrument produces a distinct, finite waveform at both supported test rates.
+ std::array<double,8> signatures{};for(double rate:{44100.0,48000.0})for(int kind=0;kind<8;++kind){WeeProcessor instrument;set(instrument,WeeProcessor::layerId(0,"instrument"),float(kind));instrument.setRateAndBufferSizeDetails(rate,256);instrument.prepareToPlay(rate,256);double sumEnergy=0,signature=0;for(int block=0;block<80;++block){midi.clear();if(block==0)midi.addEvent(juce::MidiMessage::noteOn(1,60,(juce::uint8)100),0);instrument.processBlock(buffer,midi);sumEnergy+=energy(buffer);for(int i=0;i<256;++i)signature+=buffer.getSample(0,i)*(1+(i%17));}require(sumEnergy>0.01,"instrument audio");if(rate==48000)signatures[size_t(kind)]=signature;}
+ for(int i=0;i<8;++i)for(int j=0;j<i;++j)require(std::abs(signatures[size_t(i)]-signatures[size_t(j)])>0.0001,"distinct instrument timbres");
+ // Hard-left pan routes audio exclusively to the left output after smoothing.
+ WeeProcessor pan;set(pan,WeeProcessor::layerId(0,"pan"),-1);pan.setRateAndBufferSizeDetails(48000,256);pan.prepareToPlay(48000,256);midi.clear();midi.addEvent(juce::MidiMessage::noteOn(1,60,(juce::uint8)100),0);pan.processBlock(buffer,midi);double le=0,re=0;for(int i=0;i<256;++i){le+=std::abs(buffer.getSample(0,i));re+=std::abs(buffer.getSample(1,i));}require(le>0&&re==0,"equal-power layer pan");
  std::cout<<"PASS: MIDI input piano, generation, state round-trip, preview audio and stop\n";
  }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}return 0;}
