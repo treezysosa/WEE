@@ -28,6 +28,16 @@ jobs:
       - name: Assemble installable Windows package
         shell: pwsh
         run: ./scripts/package-windows.ps1
+      - name: Verify installer on the clean Windows runner
+        shell: pwsh
+        run: |
+          ./dist/WEE-Windows-x64/Install-WEE.ps1
+          $installed = Join-Path $env:CommonProgramFiles 'VST3/WEE.vst3/Contents/x86_64-win/WEE.vst3'
+          if (!(Test-Path $installed)) { throw 'Installer did not create the VST3 binary' }
+          $sourceHash = (Get-FileHash 'dist/WEE-Windows-x64/WEE.vst3/Contents/x86_64-win/WEE.vst3').Hash
+          if ((Get-FileHash $installed).Hash -ne $sourceHash) { throw 'Installed binary differs from build' }
+          ./dist/WEE-Windows-x64/Install-WEE.ps1 -Replace
+          if (!(Get-ChildItem (Join-Path $env:CommonProgramFiles 'VST3') -Filter 'WEE.vst3.backup-*')) { throw 'Replacement backup missing' }
       - name: Upload Windows download
         uses: actions/upload-artifact@v4
         with:
