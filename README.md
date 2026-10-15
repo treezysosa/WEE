@@ -9,6 +9,8 @@ Generation is deterministic, seed-based, scale-aware and uses a shared progressi
 
 SAVE ALL MIDI / DRAG MIDI export enabled audible layers as format-1 MIDI with named tracks and separate channels; each layer's MIDI button exports it independently even if muted. Project state version 2 stores every layer's notes/settings and migrates Phase 1 project states with the original melody preserved and added layers disabled.
 
-Windows build verification for this revision is pending. The previously verified Phase 1 build remains available in GitHub Actions. See docs/VALIDATION.md. FL Studio compatibility is unverified.
+[Download WEE Phase 2 for Windows](https://github.com/treezysosa/WEE/actions/runs/38826086035/artifacts/12015585759) — extract the entire ZIP, close FL Studio, then run Install-WEE.cmd. Requires GitHub sign-in; artifact retained until November 14, 2026.
+
+Windows Visual Studio 2022 x64 Release builds of VST3 and standalone passed. All three automated test suites and installer/replacement checks passed. See docs/VALIDATION.md. FL Studio manual compatibility remains unverified.
 
 Still future work: WAV/stem export, effects, WEE FLIP, piano-roll editing, preset browser, persistent history and advanced visual polish. No fake WAV/effect controls are shown. Initial JUCE download needs network; an existing JUCE 8.0.6 checkout supports offline builds. Generation needs no network, subscription or account. JUCE licensing is separate from the original source license.

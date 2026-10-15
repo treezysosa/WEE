@@ -8,3 +8,7 @@
 7. After Phase 3: export exact 8/16-bar WAVs at all three bit depths, import into Playlist, verify loop seams, durations and tail/stem options. WAV export is currently unavailable.
 
 Automated now: portable generation determinism/bounds and independent MIDI event/duration parser; JUCE MIDI parsing; MIDI-input piano audio; generated-note and gain state round-trip into the same and fresh instances; stopped-host preview audio; preview stop; host tempo and unsupported-meter detection. Windows VST3 and standalone compilation plus installer/backup checks passed in CI. Still needed: exhaustive scheduling/seek and offline rendering tests, standalone UI/UAC checks, plugin validator and all manual FL Studio checks. Passing automated tests does not establish FL Studio compatibility.
+
+
+## Phase 2 checks
+See PHASE-2.md. For separate Piano Rolls, use each row's MIDI button (format 0). For a full layered arrangement, use SAVE ALL MIDI and FL Studio's File > Import > MIDI file workflow to choose/import the named tracks (format 1). Host import behavior still requires manual verification. Check any Phase 1 Style automation lane after upgrading because the choice list expanded; saved generated notes migrate unchanged.
