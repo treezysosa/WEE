@@ -4,6 +4,7 @@ on:
     paths-ignore:
       - "docs/**"
       - "README.md"
+  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -12,6 +13,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     name: MSVC 2022 x64 Release
     runs-on: windows-2022
     timeout-minutes: 45
