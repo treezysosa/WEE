@@ -1,3 +1,21 @@
+# Phase 4 validation — passed 2026-10-16
+
+- Windows build: https://github.com/treezysosa/WEE/actions/runs/38831830185
+- Compiled source: 5b4cb75bcb0257ccdfc7b4dbb751f789313aa29b
+- Windows Server 2022 runner, MSVC 2022 x64 Release, C++20, JUCE 8.0.6; plugin version 0.4.0.
+- VST3 and standalone compiled; all 4 CTest suites passed in 2.40 seconds.
+- New processor checks: valid edit commit, grid/pitch/end bounds, exact undo/redo, history surviving project reload and editor closure, rejection of invalid/locked edits, exact preset loading, undoable preset replacement, malformed preset preservation, eight-transaction cap, deterministic moods and mood/note state restoration.
+- Prior composition, 432 layer harmony contexts, independent MIDI/WAV parsing, actual instruments, master DSP, FLIP, stems, renderer, host/meter, state migration and editor regression suites pass.
+- Installer installed the full bundle at C:\Program Files\Common Files\VST3\WEE.vst3; installed binary hash matched the build; explicit replacement created a timestamped backup.
+- Download: https://github.com/treezysosa/WEE/actions/runs/38831830185/artifacts/12018265517
+- ZIP SHA-256: e73e7a934c341b9e7ed45163de0654debba7766ae771da49771084e63fa6787d
+- Artifact expires 2026-11-15. Includes VST3, standalone, installer, Phase 4 instructions, source/license references and per-file checksums.
+- Linux GCC: portable core/layer/DSP suites pass. Core builds with strict warnings; layer generation and a grid/pitch/end edit-bound sweep pass AddressSanitizer/UndefinedBehaviorSanitizer (sandbox leak detection disabled). JUCE processor code was not sanitizer-instrumented.
+
+FL Studio manual playback/import/project reopening, real Windows 10/11 desktop/audio-device/high-DPI interaction, interactive piano-roll gestures, file dialogs, drag/drop and UAC launcher interaction remain unverified. CI editor construction/resizing and data-layer editing tests do not substitute for these manual checks. Phase 4 remains incremental: zoom/multi-selection, preset search/tags and richer musical phrasing remain future work. See PHASE-4.md and FL-STUDIO-SETUP.md.
+
+The initial Phase 4 test compilation failed on an entry-point declaration; it was corrected before the successful build above. Earlier canceled/failed runs are not the downloadable verified build.
+
 # Phase 3 validation — passed 2026-10-16
 
 - Build: https://github.com/treezysosa/WEE/actions/runs/38829866854
@@ -22,4 +40,4 @@ FL Studio manual compatibility, Windows 10/11 desktop/device/high-DPI behavior, 
 
 WEE FLIP is a rendered-audio transform and temporary A/B audition, not an automatically regenerated live time-stretch instrument. Audition caches are not stored in projects; notes and all settings are stored. Re-render after reopening, edits or tempo/rate changes. Half-time slows the first half to the original duration and lowers pitch; transpose is granular. Seamless mode uses warm-up plus short edge fades, which can create a tiny boundary dip. User-selected tail cutoffs may truncate remaining decay. Wet stems need not sum exactly through nonlinear/noise effects. The renderer rejects over 16 million frames and other unsupported extremes explicitly. See PHASE-3.md.
 
-Future phases: advanced composition, preset files/browser, piano-roll editing, persistent history and production polish/performance. Earlier verified Phase 2 build remains at https://github.com/treezysosa/WEE/actions/runs/38826086035.
+Further work: advanced composition, richer preset browsing/editing and production polish/performance. Earlier verified Phase 2 build remains at https://github.com/treezysosa/WEE/actions/runs/38826086035.

@@ -18,7 +18,7 @@ float peak(const wee::StereoAudio&a){float p=0;for(auto& c:a.channels)for(float 
 }
 WeeRenderRequest captureRender(WeeProcessor&p){
  if(p.unsupportedMeter.load())throw std::runtime_error("WEE supports 4/4 only. Change the host time signature before rendering.");
- WeeRenderRequest q;q.token=p.changeToken.load();p.getStateInformation(q.state);q.rate=p.exportRate();
+ WeeRenderRequest q;q.token=p.changeToken.load();p.getContentState(q.state);q.rate=p.exportRate();
  auto xml=juce::AudioProcessor::getXmlFromBinary(q.state.getData(),int(q.state.getSize()));if(!xml)throw std::runtime_error("Cannot capture render state");auto tree=juce::ValueTree::fromXml(*xml);
  auto get=[&](const char*id){return float(tree.getChildWithProperty("id",id)["value"]);};
  q.bpm=get("sync")>0.5f?p.exportTempo():double(get("bpm"));q.bars=int(tree.getChildWithName("Arrangement")["bars"]);q.master=get("gain");

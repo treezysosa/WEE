@@ -1,3 +1,4 @@
+#include "Music/Editing.h"
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include <bit>
@@ -29,6 +30,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout WeeProcessor::layout(){
   else if(spec.kind==3)p.add(std::make_unique<juce::AudioParameterChoice>(spec.id,spec.label,juce::StringArray{"16-bit PCM","24-bit PCM","32-bit float"},int(spec.value)));
   else p.add(std::make_unique<juce::AudioParameterFloat>(spec.id,spec.label,spec.low,spec.high,spec.value));
  }
+ p.add(std::make_unique<juce::AudioParameterChoice>("mood","Phrase mood",juce::StringArray{"Balanced","Reflective","Energetic"},0));
  return p;
 }
 WeeProcessor::WeeProcessor():AudioProcessor(BusesProperties().withOutput("Stereo",juce::AudioChannelSet::stereo(),true)),params(*this,nullptr,"WEE",layout()){
@@ -59,7 +61,7 @@ void WeeProcessor::replaceArrangement(wee::Arrangement a){
 void WeeProcessor::replace(wee::Composition c){auto a=wee::generateArrangement(c.settings);a.layers[0]=std::move(c);replaceArrangement(std::move(a));}
 bool WeeProcessor::generate(){
  if(unsupportedMeter.load()){generationStatus=3;return false;}
- wee::Settings s;s.key=int(*params.getRawParameterValue("key"));s.scale=int(*params.getRawParameterValue("scale"));s.style=int(*params.getRawParameterValue("style"));s.bars=*params.getRawParameterValue("bars")>0?16:8;s.bpm=bpmParam->load();
+ wee::Settings s;s.key=int(*params.getRawParameterValue("key"));s.scale=int(*params.getRawParameterValue("scale"));s.style=int(*params.getRawParameterValue("style"));s.bars=*params.getRawParameterValue("bars")>0?16:8;s.bpm=bpmParam->load();s.mood=int(*params.getRawParameterValue("mood"));
  auto old=snapshotArrangement();bool anyLock=false;for(auto& c:controls)anyLock=anyLock||c.locked->load()>0.5f;
  if(anyLock&&!wee::sameHarmony(s,old.context)){generationStatus=1;return false;}
  s.seed=seed.fetch_add(1);auto a=wee::generateArrangement(s);for(int i=0;i<8;++i)if(controls[size_t(i)].locked->load()>0.5f)a.layers[size_t(i)]=old.layers[size_t(i)];
@@ -124,27 +126,64 @@ void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffe
  gain.setTargetValue(gainParam->load());for(int t=0;t<output.getNumSamples();++t){float g=gain.getNextValue();for(int ch=0;ch<output.getNumChannels();++ch)output.getWritePointer(ch)[t]*=g;}incoming.clear();
 }
 namespace {
-void writeSettings(juce::ValueTree& v,const wee::Settings&s){v.setProperty("bars",s.bars,nullptr);v.setProperty("key",s.key,nullptr);v.setProperty("scale",s.scale,nullptr);v.setProperty("style",s.style,nullptr);v.setProperty("seed",juce::int64(s.seed),nullptr);v.setProperty("bpm",s.bpm,nullptr);}
+void writeSettings(juce::ValueTree& v,const wee::Settings&s){v.setProperty("bars",s.bars,nullptr);v.setProperty("key",s.key,nullptr);v.setProperty("scale",s.scale,nullptr);v.setProperty("style",s.style,nullptr);v.setProperty("seed",juce::int64(s.seed),nullptr);v.setProperty("bpm",s.bpm,nullptr);v.setProperty("mood",s.mood,nullptr);}
 void writeNotes(juce::ValueTree& v,const wee::Composition&c){v.setProperty("seed",juce::int64(c.settings.seed),nullptr);for(auto& n:c.notes){juce::ValueTree note("Note");note.setProperty("beat",n.beat,nullptr);note.setProperty("length",n.length,nullptr);note.setProperty("beatBits",juce::String::toHexString(juce::int64(std::bit_cast<uint64_t>(n.beat))),nullptr);note.setProperty("lengthBits",juce::String::toHexString(juce::int64(std::bit_cast<uint64_t>(n.length))),nullptr);note.setProperty("pitch",n.pitch,nullptr);note.setProperty("velocity",n.velocity,nullptr);v.appendChild(note,nullptr);}}
 bool readNotes(const juce::ValueTree&v,wee::Composition&c){if(v.getNumChildren()>2048)return false;for(auto n:v){wee::Note note{double(n["beat"]),double(n["length"]),int(n["pitch"]),int(n["velocity"])};if(n.hasProperty("beatBits"))note.beat=std::bit_cast<double>(uint64_t(n["beatBits"].toString().getHexValue64()));if(n.hasProperty("lengthBits"))note.length=std::bit_cast<double>(uint64_t(n["lengthBits"].toString().getHexValue64()));if(!n.hasType("Note")||!std::isfinite(note.beat)||!std::isfinite(note.length)||note.beat<0||note.length<=0||note.beat+note.length>c.settings.bars*4+1.0e-8||note.pitch<0||note.pitch>127||note.velocity<1||note.velocity>127)return false;c.notes.push_back(note);}wee::sort(c);return true;}
 }
-void WeeProcessor::getStateInformation(juce::MemoryBlock&out){auto tree=params.copyState();tree.setProperty("version",3,nullptr);tree.setProperty("nextSeed",juce::int64(seed.load()),nullptr);auto a=snapshotArrangement();juce::ValueTree song("Arrangement");writeSettings(song,a.context);for(int i=0;i<8;++i){juce::ValueTree layer("Layer");layer.setProperty("index",i,nullptr);writeNotes(layer,a.layers[size_t(i)]);song.appendChild(layer,nullptr);}tree.appendChild(song,nullptr);auto xml=tree.createXml();copyXmlToBinary(*xml,out);}
-void WeeProcessor::setStateInformation(const void*data,int size){
- if(!data||size<=0||size>4*1024*1024)return;auto xml=getXmlFromBinary(data,size);if(!xml)return;auto tree=juce::ValueTree::fromXml(*xml);if(!tree.hasType("WEE"))return;int version=int(tree["version"]);if(version!=1&&version!=2&&version!=3)return;
+void WeeProcessor::getContentState(juce::MemoryBlock&out){auto tree=params.copyState();tree.setProperty("version",4,nullptr);tree.setProperty("nextSeed",juce::int64(seed.load()),nullptr);auto a=snapshotArrangement();juce::ValueTree song("Arrangement");writeSettings(song,a.context);for(int i=0;i<8;++i){juce::ValueTree layer("Layer");layer.setProperty("index",i,nullptr);writeNotes(layer,a.layers[size_t(i)]);song.appendChild(layer,nullptr);}tree.appendChild(song,nullptr);auto xml=tree.createXml();copyXmlToBinary(*xml,out);}
+bool WeeProcessor::restoreContent(const void*data,int size){
+ if(!data||size<=0||size>4*1024*1024)return false;auto xml=getXmlFromBinary(data,size);if(!xml)return false;auto tree=juce::ValueTree::fromXml(*xml);if(!tree.hasType("WEE"))return false;int version=int(tree["version"]);if(version!=1&&version!=2&&version!=3&&version!=4)return false;
  // Build a full parameter tree first; missing Phase 2 controls get their defaults.
  juce::ValueTree restored("WEE");for(auto* raw:getParameters())if(auto* parameter=dynamic_cast<juce::RangedAudioParameter*>(raw)){
   double value=parameter->convertFrom0to1(parameter->getDefaultValue());auto input=tree.getChildWithProperty("id",parameter->paramID);if(input.isValid())value=double(input["value"]);
-  auto range=parameter->getNormalisableRange();if(!std::isfinite(value)||value<range.start||value>range.end)return;juce::ValueTree v("PARAM");v.setProperty("id",parameter->paramID,nullptr);v.setProperty("value",range.snapToLegalValue(float(value)),nullptr);restored.appendChild(v,nullptr);
+  auto range=parameter->getNormalisableRange();if(!std::isfinite(value)||value<range.start||value>range.end)return false;juce::ValueTree v("PARAM");v.setProperty("id",parameter->paramID,nullptr);v.setProperty("value",range.snapToLegalValue(float(value)),nullptr);restored.appendChild(v,nullptr);
  }
- auto value=[&](const char* id){return double(restored.getChildWithProperty("id",id)["value"]);};wee::Settings settings;settings.key=int(value("key"));settings.scale=int(value("scale"));settings.style=int(value("style"));settings.bars=value("bars")>0?16:8;settings.bpm=value("bpm");
+ auto value=[&](const char* id){return double(restored.getChildWithProperty("id",id)["value"]);};wee::Settings settings;settings.key=int(value("key"));settings.scale=int(value("scale"));settings.style=int(value("style"));settings.bars=value("bars")>0?16:8;settings.bpm=value("bpm");settings.mood=int(value("mood"));
  wee::Arrangement a;
- if(version==1){auto song=tree.getChildWithName("Song");if(!song.isValid())return;settings.bars=int(song["bars"]);settings.seed=uint32_t(juce::int64(song["seed"]));settings.bpm=double(song["bpm"]);if((settings.bars!=8&&settings.bars!=16)||!std::isfinite(settings.bpm)||settings.bpm<20||settings.bpm>999)return;
-  a=wee::generateArrangement(settings);a.context=settings;a.layers[0]={settings,{}};if(!readNotes(song,a.layers[0]))return;
- }else{auto song=tree.getChildWithName("Arrangement");if(!song.isValid()||song.getNumChildren()!=8)return;settings.bars=int(song["bars"]);settings.key=int(song["key"]);settings.scale=int(song["scale"]);settings.style=int(song["style"]);settings.seed=uint32_t(juce::int64(song["seed"]));settings.bpm=double(song["bpm"]);
-  if((settings.bars!=8&&settings.bars!=16)||settings.key<0||settings.key>11||settings.scale<0||settings.scale>1||settings.style<0||settings.style>8||!std::isfinite(settings.bpm)||settings.bpm<20||settings.bpm>999)return;
-  a.context=settings;std::array<bool,8> found{};for(auto layer:song){int i=int(layer["index"]);if(!layer.hasType("Layer")||i<0||i>=8||found[size_t(i)])return;found[size_t(i)]=true;a.layers[size_t(i)].settings=settings;a.layers[size_t(i)].settings.seed=uint32_t(juce::int64(layer["seed"]));if(!readNotes(layer,a.layers[size_t(i)]))return;}
+ if(version==1){auto song=tree.getChildWithName("Song");if(!song.isValid())return false;settings.bars=int(song["bars"]);settings.seed=uint32_t(juce::int64(song["seed"]));settings.bpm=double(song["bpm"]);if((settings.bars!=8&&settings.bars!=16)||!std::isfinite(settings.bpm)||settings.bpm<20||settings.bpm>999)return false;
+  a=wee::generateArrangement(settings);a.context=settings;a.layers[0]={settings,{}};if(!readNotes(song,a.layers[0]))return false;
+ }else{auto song=tree.getChildWithName("Arrangement");if(!song.isValid()||song.getNumChildren()!=8)return false;settings.bars=int(song["bars"]);settings.key=int(song["key"]);settings.scale=int(song["scale"]);settings.style=int(song["style"]);settings.mood=song.hasProperty("mood")?int(song["mood"]):0;settings.seed=uint32_t(juce::int64(song["seed"]));settings.bpm=double(song["bpm"]);
+  if((settings.bars!=8&&settings.bars!=16)||settings.key<0||settings.key>11||settings.scale<0||settings.scale>1||settings.style<0||settings.style>8||settings.mood<0||settings.mood>2||!std::isfinite(settings.bpm)||settings.bpm<20||settings.bpm>999)return false;
+  a.context=settings;std::array<bool,8> found{};for(auto layer:song){int i=int(layer["index"]);if(!layer.hasType("Layer")||i<0||i>=8||found[size_t(i)])return false;found[size_t(i)]=true;a.layers[size_t(i)].settings=settings;a.layers[size_t(i)].settings.seed=uint32_t(juce::int64(layer["seed"]));if(!readNotes(layer,a.layers[size_t(i)]))return false;}
  }
- params.replaceState(restored);seed=version>=2?uint32_t(juce::int64(tree["nextSeed"])):settings.seed+1;replaceArrangement(std::move(a));generationStatus=0;
+ params.replaceState(restored);seed=version>=2?uint32_t(juce::int64(tree["nextSeed"])):settings.seed+1;replaceArrangement(std::move(a));generationStatus=0;return true;
 }
 juce::AudioProcessorEditor* WeeProcessor::createEditor(){return new WeeEditor(*this);}
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter(){return new WeeProcessor();}
+
+bool WeeProcessor::editLayer(int index,const wee::Composition& edited){
+ if(index<0||index>=8||unsupportedMeter||!wee::validNotes(edited))return false;
+ if(controls[size_t(index)].locked->load()>0.5f){generationStatus=2;return false;}
+ auto a=snapshotArrangement();if(!wee::sameHarmony(a.context,edited.settings))return false;
+ if(a.layers[size_t(index)].notes==edited.notes)return false;
+ a.layers[size_t(index)]=edited;wee::sort(a.layers[size_t(index)]);replaceArrangement(std::move(a));generationStatus=0;return true;
+}
+
+void WeeProcessor::trimHistory(std::vector<juce::MemoryBlock>& entries){
+ size_t total=0;for(auto& b:entries)total+=b.getSize();
+ while(!entries.empty()&&(entries.size()>8||total>2*1024*1024)){total-=entries.front().getSize();entries.erase(entries.begin());}
+}
+void WeeProcessor::remember(juce::MemoryBlock before){const juce::ScopedLock lock(historyLock);past.push_back(std::move(before));trimHistory(past);future.clear();}
+bool WeeProcessor::canUndo()const{const juce::ScopedLock lock(historyLock);return !past.empty();}
+bool WeeProcessor::canRedo()const{const juce::ScopedLock lock(historyLock);return !future.empty();}
+bool WeeProcessor::travelHistory(bool redo){
+ const juce::ScopedLock lock(historyLock);auto& from=redo?future:past;auto& to=redo?past:future;if(from.empty())return false;
+ juce::MemoryBlock now;getContentState(now);auto& wanted=from.back();if(!restoreContent(wanted.getData(),int(wanted.getSize())))return false;
+ from.pop_back();to.push_back(std::move(now));trimHistory(to);return true;
+}
+bool WeeProcessor::loadPreset(const juce::MemoryBlock& bytes){juce::MemoryBlock before;getContentState(before);if(!restoreContent(bytes.getData(),int(bytes.getSize())))return false;remember(std::move(before));return true;}
+void WeeProcessor::getStateInformation(juce::MemoryBlock& out){
+ juce::MemoryBlock current;getContentState(current);auto xml=getXmlFromBinary(current.getData(),int(current.getSize()));auto tree=juce::ValueTree::fromXml(*xml);
+ juce::ValueTree history("History");const juce::ScopedLock lock(historyLock);
+ for(int direction=0;direction<2;++direction){juce::ValueTree list(direction==0?"Past":"Future");for(auto& bytes:direction==0?past:future){juce::ValueTree entry("Entry");entry.setProperty("data",bytes.toBase64Encoding(),nullptr);list.appendChild(entry,nullptr);}history.appendChild(list,nullptr);}
+ tree.appendChild(history,nullptr);auto full=tree.createXml();copyXmlToBinary(*full,out);
+}
+void WeeProcessor::setStateInformation(const void* data,int size){
+ if(!data||size<=0||size>12*1024*1024)return;auto xml=getXmlFromBinary(data,size);if(!xml)return;auto tree=juce::ValueTree::fromXml(*xml);
+ auto history=tree.getChildWithName("History");tree.removeChild(history,nullptr);auto contentXml=tree.createXml();juce::MemoryBlock current;copyXmlToBinary(*contentXml,current);
+ if(!restoreContent(current.getData(),int(current.getSize())))return;
+ const juce::ScopedLock lock(historyLock);past.clear();future.clear();
+ for(int direction=0;direction<2;++direction){auto list=history.getChildWithName(direction==0?"Past":"Future");if(list.getNumChildren()>8)continue;auto& entries=direction==0?past:future;
+ for(auto entry:list){juce::MemoryBlock bytes;if(!entry.hasType("Entry")||entry["data"].toString().length()>3*1024*1024||!bytes.fromBase64Encoding(entry["data"].toString()))continue;
+ auto inner=getXmlFromBinary(bytes.getData(),int(bytes.getSize()));if(!inner||!inner->hasTagName("WEE")||inner->getChildByName("History"))continue;entries.push_back(std::move(bytes));}trimHistory(entries);}
+}

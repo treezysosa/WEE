@@ -12,3 +12,7 @@ Automated now: portable generation determinism/bounds and independent MIDI event
 
 ## Phase 2 checks
 See PHASE-2.md. For separate Piano Rolls, use each row's MIDI button (format 0). For a full layered arrangement, use SAVE ALL MIDI and FL Studio's File > Import > MIDI file workflow to choose/import the named tracks (format 1). Host import behavior still requires manual verification. Check any Phase 1 Style automation lane after upgrading because the choice list expanded; saved generated notes migrate unchanged.
+
+## Phase 4 manual checks
+
+Select a layer in CREATE, open EDIT / LIBRARY, then add, move, resize, adjust velocity and delete notes. Verify locks, Escape cancellation and all grid choices. Undo and redo each gesture. Close/reopen the plugin window and verify history remains. Save/reopen an FL Studio project and verify exact edited notes, settings and undo/redo. Save a .wee preset, generate different content, load the preset and undo the load. Try every factory preset, all three moods, preset overwrite confirmation and an invalid file. Drag exported MIDI into Piano Roll, then close the editor and confirm the file is still usable. These checks require FL Studio and are not implied by automated CI passing.

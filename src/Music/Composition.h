@@ -15,7 +15,7 @@ struct Settings { int bars=8, key=9, scale=0, style=1, mood=0; uint32_t seed=1; 
 struct Composition { Settings settings; std::vector<Note> notes; };
 struct Arrangement { Settings context; std::array<Composition, layerCount> layers; };
 struct Random { uint32_t state; uint32_t next(){state=1664525u*state+1013904223u;return state;} };
-inline Settings sanitise(Settings s){s.bars=s.bars==16?16:8;s.key=std::clamp(s.key,0,11);s.scale=std::clamp(s.scale,0,1);s.style=std::clamp(s.style,0,8);s.bpm=std::isfinite(s.bpm)?std::clamp(s.bpm,40.0,240.0):120;return s;}
+inline Settings sanitise(Settings s){s.bars=s.bars==16?16:8;s.key=std::clamp(s.key,0,11);s.scale=std::clamp(s.scale,0,1);s.style=std::clamp(s.style,0,8);s.mood=std::clamp(s.mood,0,2);s.bpm=std::isfinite(s.bpm)?std::clamp(s.bpm,40.0,240.0):120;return s;}
 inline int pitch(const Settings& s,int degree,int base=60){
  constexpr std::array<int,7> minor{0,2,3,5,7,8,10},major{0,2,4,5,7,9,11};
  int oct=degree/7,index=degree%7;if(index<0){index+=7;--oct;}
@@ -34,16 +34,19 @@ inline Composition generate(Settings input){
  int steps=int(4/grid),previous=0;
  for(int bar=0;bar<s.bars;++bar)for(int t=0;t<steps;++t){
   auto v=rng.next();int rest=s.style==1?42:s.style==7?48:s.style==2?28:18;
+  rest=std::clamp(rest+(s.mood==1?20:s.mood==2?-15:0),0,85);
   if((int(v%100)<rest && t!=0)||(s.style==7 && bar%2==1 && t>4))continue;
   int root=chord(s,bar);int degree=t%4==0?root:motif[size_t((t+bar%2*4)%8)];
+  // Repeat a two-bar hook; the response rises on alternate phrases.
   if(bar%4==3 && t==steps-1)degree=bar%8==7?0:root;
   if(bar%4==2 && t%4!=0)degree=std::clamp(previous+int(v%3)-1,0,9);
+  if(bar%4==2 && t%4==2)degree=std::min(9,degree+2);
   previous=degree;
   double timing=t==0?0:(int(rng.next()%9)-4)*0.002;
   if(s.style==8 && t%2)timing+=0.065;
   double len=grid*(s.style==5||s.style==6?0.97:s.style==2?1.2:0.78);
   int base=s.style==3?48:60;
-  add(c,bar*4+t*grid+timing,len,pitch(s,degree,base),68+int(rng.next()%35));
+  add(c,bar*4+t*grid+timing,len,pitch(s,degree,base),(s.mood==1?52:s.mood==2?82:68)+int(rng.next()%(s.mood==2?30:35)));
  }
  sort(c);return c;
 }
