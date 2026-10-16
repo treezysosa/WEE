@@ -55,6 +55,22 @@ jobs:
         run: |
           & "$env:SystemRoot/SysWOW64/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File ./tests/InstallerTests.ps1
           if ($LASTEXITCODE -ne 0) { throw '32-bit PowerShell recovery tests failed' }
+      - name: Verify real standalone window and VST3 module loading
+        shell: pwsh
+        run: ./tests/WindowsStartup.ps1
+      - name: Verify no external MSVC runtime dependency
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $vsRoot = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (!$vsRoot) { throw 'Visual Studio C++ installation not found' }
+          $dumpbin = Get-ChildItem (Join-Path $vsRoot 'VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe') | Sort-Object FullName -Descending | Select-Object -First 1
+          if (!$dumpbin) { throw 'MSVC dumpbin not found' }
+          foreach ($binary in @('build/WEE_artefacts/Release/Standalone/WEE.exe','build/WEE_artefacts/Release/VST3/WEE.vst3/Contents/x86_64-win/WEE.vst3')) {
+            $dependencies = & $dumpbin.FullName /DEPENDENTS $binary
+            $dependencies | Write-Host
+            if ($LASTEXITCODE -ne 0 -or ($dependencies -match '(?i)(vcruntime|msvcp|ucrtbase).*\.dll')) { throw 'External C++ runtime dependency remains' }
+          }
       - name: Assemble installable Windows package
         shell: pwsh
         run: ./scripts/package-windows.ps1
@@ -83,5 +99,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: WEE-test-results
-          path: build/Testing/Temporary/LastTest.log
+          path: |
+            build/Testing/Temporary/LastTest.log
+            build/startup-diagnostics/*
           if-no-files-found: ignore
