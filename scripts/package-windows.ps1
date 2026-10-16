@@ -11,6 +11,7 @@ Copy-Item $standalone "$package/WEE.exe" -Force
 Copy-Item 'scripts/Install-WEE.ps1' "$package/Install-WEE.ps1" -Force
 Copy-Item 'scripts/Install-WEE.cmd' "$package/Install-WEE.cmd" -Force
 Copy-Item 'docs/WINDOWS-DOWNLOAD.md' "$package/READ-ME.txt" -Force
+Copy-Item 'docs/PHASE-4.md' "$package/PHASE-4.txt" -Force
 Copy-Item 'LICENSE' "$package/LICENSE.txt" -Force
 Copy-Item 'build/_deps/juce-src/LICENSE.md' "$package/JUCE-LICENSE.md" -Force
 "Corresponding WEE source: https://github.com/treezysosa/WEE/tree/$env:GITHUB_SHA`nJUCE source: https://github.com/juce-framework/JUCE/tree/8.0.6" | Set-Content "$package/SOURCE-URL.txt"
