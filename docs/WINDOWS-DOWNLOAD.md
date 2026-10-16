@@ -15,6 +15,8 @@ If Windows reports a missing Visual C++ runtime, install Microsoft's x64 Visual 
 https://aka.ms/vs/17/release/vc_redist.x64.exe
 This development build is unsigned. SmartScreen may identify an unknown publisher.
 
+Phase 5 adds optimized event scheduling and editor caching, glossy animated buttons, output meters, note tooltips, a local SAVE REPORT, and staged checksum-verified installation with rollback. Run Verify-WEE.cmd to verify the package and installed plugin. Retained backups can be restored manually; see PHASE-5.txt. FL Studio manual testing remains unverified.
+
 Phase 3 includes real live DSP effects, background WAV/stem export (16/24-bit PCM and true float32), separate tails, and WEE FLIP audio transforms with cached original/flipped comparison. Use FX / FLIP / WAV. Main WAVs retain the selected bar length. RENDER A/B applies FLIP controls; Apply FLIP to WAV selects transformed exports.
 
 Included from Phase 2: eight shared-harmony layers, eight synthesized instruments, nine styles, enable/mute/solo, volume/pan, layer locking and isolated regeneration, per-layer and multitrack MIDI export, complete generation undo/redo, host sync, automation and versioned project state. Only Lead is enabled initially; turn other layers ON. Click a layer name to inspect it.

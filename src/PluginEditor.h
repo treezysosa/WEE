@@ -2,6 +2,7 @@
 #include "PluginProcessor.h"
 #include "Export/Renderer.h"
 #include "UI/PianoRoll.h"
+#include "UI/Theme.h"
 class MidiDragButton : public juce::TextButton {
 public:
  MidiDragButton():juce::TextButton("DRAG MIDI"){}
@@ -41,7 +42,11 @@ public:
  explicit WeeEditor(WeeProcessor&);~WeeEditor()override{stopTimer();renderJob.cancel();setLookAndFeel(nullptr);}
  void paint(juce::Graphics&)override;void resized()override;
 private:
- WeeProcessor&p;juce::LookAndFeel_V4 look;
+ WeeProcessor&p;WeeTheme look;
+ juce::TooltipWindow tooltips{this,600};
+ juce::TextButton report{"SAVE REPORT"};
+ std::array<float,2> visiblePeak{};int clipHold=0;
+ void saveReport();
  WeeRenderJob renderJob;
  juce::TextButton createPage{"CREATE / MIXER"},effectsPage{"FX / FLIP / WAV"};
  bool showEffects=false;

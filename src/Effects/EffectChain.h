@@ -34,6 +34,7 @@ public:
  void set(const EffectSettings& p){std::array<float,11> v{p.enabled?1.f:0.f,p.reverb,p.delay,p.chorus,p.saturation,p.lowpass,p.highpass,p.width,p.wow,p.vinyl,0};for(size_t i=0;i<v.size();++i)smooth[i].set(v[i],ramp);}
  void process(float* left,float* right,int count,double bpm){
   bpm=std::isfinite(bpm)?std::clamp(bpm,20.0,999.0):120;delayTime.set(float(sr*60/bpm),ramp);
+  if(smooth[0].value==0&&smooth[0].target==0&&delayTime.remaining==0&&std::all_of(smooth.begin(),smooth.end(),[](const auto& value){return value.remaining==0;}))return;
   for(int frame=0;frame<count;++frame){float delayFrames=delayTime.next(),wet=smooth[0].next();std::array<float,10> p{};for(int i=1;i<11;++i)p[size_t(i-1)]=smooth[size_t(i)].next();
    if(wet==0&&smooth[0].target==0)continue;
    float rawL=left[frame],rawR=right[frame];std::array<float,2> x{rawL,rawR};

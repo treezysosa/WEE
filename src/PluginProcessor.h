@@ -1,6 +1,7 @@
 #pragma once
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Music/Composition.h"
+#include "Music/Schedule.h"
 #include "Instruments/Piano.h"
 #include "Effects/Parameters.h"
 #include "Effects/Flip.h"
@@ -22,6 +23,10 @@ public:
  static juce::String layerId(int,const juce::String&);
  bool generate(); bool regenerateLayer(int);
  bool editLayer(int,const wee::Composition&);
+ wee::Composition snapshotLayer(int);
+ uint32_t layerVersion(int i)const{return revision[size_t(i)].load();}
+ juce::String diagnosticReport();
+ std::array<std::atomic<float>,2> meterPeak{};
  void getContentState(juce::MemoryBlock&);
  bool restoreContent(const void*,int);
  void remember(juce::MemoryBlock);bool travelHistory(bool redo);
@@ -57,6 +62,7 @@ private:
  std::array<int,8> previousInstrument{};
  std::array<bool,8> previousAudible{};
  juce::SpinLock contentLock; wee::Arrangement content;
+ std::array<wee::LayerSchedule,8> schedules;
  double previewBeat=0,expectedHostBeat=0; bool wasPlaying=false,wasHost=false;
  std::atomic<uint32_t> seed{1};juce::SmoothedValue<float> gain;
  wee::EffectChain effects;
@@ -66,5 +72,6 @@ private:
  juce::SpinLock auditionLock;std::unique_ptr<WeeAudition> audition;
  juce::SmoothedValue<float> auditionBlend,auditionGate;double auditionBeat=0;
  void parameterChanged(const juce::String&,float) override;
+ std::atomic<int> reportedBlock{512};
  int preparedBlock=512,playbackBars=8;
 };

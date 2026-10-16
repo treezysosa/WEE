@@ -11,7 +11,7 @@ struct TestPlayHead : juce::AudioPlayHead {
  PositionInfo position;
  juce::Optional<PositionInfo> getPosition() const override { return position; }
 };
-void runRenderTests();void runEditingTests();
+void runRenderTests();void runEditingTests();void runPerformanceTests();
 int main(){juce::ScopedJuceInitialiser_GUI init;try{
  WeeProcessor p;p.setRateAndBufferSizeDetails(48000,256);p.prepareToPlay(48000,256);juce::AudioBuffer<float> buffer(2,256);juce::MidiBuffer midi;
  midi.addEvent(juce::MidiMessage::noteOn(1,69,(juce::uint8)110),0);p.processBlock(buffer,midi);require(energy(buffer)>0.001,"MIDI input must produce audible piano");
@@ -64,6 +64,6 @@ juce::MemoryBlock state;p.getStateInformation(state);p.generate();require(p.snap
  auto good=layers.snapshotArrangement();auto badXml=juce::AudioProcessor::getXmlFromBinary(layerState.getData(),int(layerState.getSize()));auto malformed=juce::ValueTree::fromXml(*badXml);malformed.getChildWithName("Arrangement").getChild(0).getChild(0).setProperty("pitch",999,nullptr);auto invalidXml=malformed.createXml();juce::MemoryBlock invalid;juce::AudioProcessor::copyXmlToBinary(*invalidXml,invalid);layers.setStateInformation(invalid.getData(),int(invalid.getSize()));require(layers.snapshot().notes==good.layers[0].notes,"invalid state preserves content");
  // Construct, resize and destroy the editor at its compact and large sizes.
  {std::unique_ptr<juce::AudioProcessorEditor> editor(layers.createEditor());editor->setSize(850,650);editor->setSize(1600,1250);}
- runEditingTests();runRenderTests();
+ runEditingTests();runPerformanceTests();runRenderTests();
  std::cout<<"PASS: MIDI input piano, generation, state round-trip, preview audio and stop\n";
  }catch(const std::exception&e){std::cerr<<e.what()<<'\n';return 1;}return 0;}
