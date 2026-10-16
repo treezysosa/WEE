@@ -1,7 +1,9 @@
-# WEE — Phase 4 development build (0.4.0)
+# WEE — Phase 5 development build (0.5.0)
 Windows-first JUCE VST3 instrument and standalone app. Eight generated musical layers, eight original synthesized instruments, nine styles, MIDI export, mixer/locks and exact generated-note state remain available.
 
-Phase 4 adds an editable piano roll, six original factory arrangements, local .wee preset save/load, bounded undo/redo saved with projects, and Balanced / Reflective / Energetic phrase moods. Select a layer in CREATE, then open EDIT / LIBRARY. See [Phase 4 controls and limits](docs/PHASE-4.md).
+Phase 5 adds binary-searched note schedules, cached piano-roll rendering, idle DSP/synth shortcuts, glossy animated buttons, output meters, note tooltips, working click-then-Delete selection, local diagnostic reports, and checksum-verified staged Windows updates with backups/rollback. Run Verify-WEE.cmd for a read-only integrity check. See [Phase 5 behavior and limits](docs/PHASE-5.md).
+
+Phase 4 added an editable piano roll, six original factory arrangements, local .wee preset save/load, bounded undo/redo saved with projects, and Balanced / Reflective / Energetic phrase moods. Select a layer in CREATE, then open EDIT / LIBRARY. See [Phase 4 controls and limits](docs/PHASE-4.md).
 
 Phase 3 added real master-bus reverb, tempo-synced delay, chorus, saturation, low/high-pass filters, stereo width, wow/flutter and gated vinyl noise. Controls smooth over 20 ms; enable Live effects to hear them.
 
@@ -9,8 +11,8 @@ The FX / FLIP / WAV page renders real audio on a background worker. WEE FLIP off
 
 SAVE WAV exports the audible mix; EXPORT STEMS exports enabled audible layers separately; each row's WAV button renders that layer regardless of mute/enable. Export supports stereo 16-bit PCM, 24-bit PCM and actual 32-bit IEEE float WAV at the host sample rate (48 kHz fallback before the host supplies a rate). Main files always contain round(bars * 4 * 60 / BPM * sampleRate) frames. Optional tails go into separate files. Seamless mode uses instrument/effect warm-up plus 2 ms boundary fades without extending duration. Each export gets a fresh folder; DRAG WAV and OPEN EXPORT FOLDER provide FL Studio import paths.
 
-[Download WEE Phase 4 for Windows](https://github.com/treezysosa/WEE/actions/runs/38831830185/artifacts/12018265517) — sign in to GitHub, extract the entire ZIP, close FL Studio and run Install-WEE.cmd. Artifact retained until November 15, 2026.
+[Download WEE Phase 5 for Windows](https://github.com/treezysosa/WEE/actions/runs/38834778684/artifacts/12018846261) — sign in to GitHub, extract the entire ZIP, close FL Studio and run Install-WEE.cmd. Artifact retained until November 15, 2026.
 
-Windows x64 Release VST3/standalone compilation, all four CTest suites and installer/replacement checks passed on 2026-10-16. The processor suite includes editing, preset load/rejection, persistent undo/redo, older state migration, actual audio/WAV rendering and editor lifecycle checks. Portable composition/edit-bound checks also pass with sanitizers. See docs/PHASE-3.md for exact half-time semantics, render limits and known limitations. FL Studio manual compatibility remains unverified.
+Windows x64 Release VST3/standalone compilation, all six CTest suites and installer integrity/replacement/rollback checks passed on 2026-10-16. The processor suite includes real editing gestures, preset load/rejection, persistent undo/redo, older state migration, actual audio/WAV rendering, meters/diagnostics and 18 callback timing profiles. Installer recovery is checked in both 64-bit and 32-bit Windows PowerShell; packaged and developer entry points install and verify the real bundle. Portable composition/edit-bound checks also pass with sanitizers. See docs/PHASE-3.md for exact half-time semantics, render limits and known limitations. FL Studio manual compatibility remains unverified.
 
 Future work: richer composition, preset search/tags, piano-roll zoom and multi-selection, high-quality time stretching and further visual/performance polish. No account, subscription, network or commercial sample library is needed for generation. JUCE licensing applies separately; an existing JUCE 8.0.6 checkout enables offline builds.
