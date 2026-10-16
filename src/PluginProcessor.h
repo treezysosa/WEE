@@ -52,7 +52,7 @@ private:
  wee::EffectChain effects;
  std::array<std::atomic<float>*,10> effectRefs{};
  std::atomic<float>* bpmParam=nullptr,*syncParam=nullptr,*gainParam=nullptr;
- std::atomic<double> preparedRate{48000};std::atomic<bool> hostTempoAvailable{false};
+ std::atomic<double> clipTempo{0},preparedRate{48000};std::atomic<bool> hostTempoAvailable{false};
  juce::SpinLock auditionLock;std::unique_ptr<WeeAudition> audition;
  juce::SmoothedValue<float> auditionBlend,auditionGate;double auditionBeat=0;
  void parameterChanged(const juce::String&,float) override;

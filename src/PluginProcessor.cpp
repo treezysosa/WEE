@@ -47,7 +47,7 @@ double WeeProcessor::exportTempo()const{return syncParam->load()>0.5f&&hostTempo
 double WeeProcessor::getTailLengthSeconds()const{if(!effectRefs[0]||effectRefs[0]->load()<0.5f)return 3;double delay=effectRefs[2]->load()>0?60.0/std::clamp(exportTempo(),20.0,999.0)*11:0;return std::min(30.0,3+std::max(effectRefs[1]->load()>0?2.5:0.0,delay));}
 wee::EffectSettings WeeProcessor::effectSettings()const{wee::EffectSettings s;s.enabled=effectRefs[0]->load()>0.5f;s.reverb=effectRefs[1]->load();s.delay=effectRefs[2]->load();s.chorus=effectRefs[3]->load();s.saturation=effectRefs[4]->load();s.lowpass=effectRefs[5]->load();s.highpass=effectRefs[6]->load();s.width=effectRefs[7]->load();s.wow=effectRefs[8]->load();s.vinyl=effectRefs[9]->load();return s;}
 wee::FlipSettings WeeProcessor::flipSettings()const{auto get=[&](const char*id){return params.getRawParameterValue(id)->load();};wee::FlipSettings s;s.half=get("flip_half")>0.5f;s.reverse=get("flip_reverse")>0.5f;s.transpose=int(get("flip_pitch"));s.tape=get("flip_tape");s.wow=get("flip_wow");s.lowpass=get("flip_lowpass");s.reverb=get("flip_reverb");s.vintage=get("flip_vintage");return s;}
-void WeeProcessor::publishAudition(std::unique_ptr<WeeAudition> pair){if(!pair||pair->original.size()==0||pair->original.size()!=pair->flipped.size())return;std::unique_ptr<WeeAudition> old;{const juce::SpinLock::ScopedLockType lock(auditionLock);if(pair->token!=changeToken.load())return;old=std::move(audition);audition=std::move(pair);clipToken=audition->token;}}
+void WeeProcessor::publishAudition(std::unique_ptr<WeeAudition> pair){if(!pair||pair->original.size()==0||pair->original.size()!=pair->flipped.size())return;std::unique_ptr<WeeAudition> old;{const juce::SpinLock::ScopedLockType lock(auditionLock);if(pair->token!=changeToken.load())return;old=std::move(audition);audition=std::move(pair);clipTempo=audition->bpm;clipToken=audition->token;}}
 
 wee::Arrangement WeeProcessor::snapshotArrangement(){const juce::SpinLock::ScopedLockType l(contentLock);return content;}
 wee::Composition WeeProcessor::snapshot(){const juce::SpinLock::ScopedLockType l(contentLock);return content.layers[0];}
@@ -85,7 +85,7 @@ void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffe
   if(syncParam->load()>0.5f){host=pos->getIsPlaying();if(auto t=pos->getBpm())if(std::isfinite(*t)&&*t>0){bpm=juce::jlimit(20.0,999.0,*t);tempoKnown=true;}if(host)if(auto p=pos->getPpqPosition())if(std::isfinite(*p)&&std::abs(*p)<1.0e9)beat=*p;}
   if(auto ts=pos->getTimeSignature())bad=ts->numerator!=4||ts->denominator!=4;
  }
- hostTempoAvailable=tempoKnown;tempo=bpm;unsupportedMeter=bad;bool playing=(host||preview.load())&&!bad;double step=bpm/(60*sr);
+ hostTempoAvailable=tempoKnown;tempo=bpm;if(clipToken.load()!=0&&std::abs(clipTempo.load()-bpm)>0.001){clipToken=0;auditionMode=0;}unsupportedMeter=bad;bool playing=(host||preview.load())&&!bad;double step=bpm/(60*sr);
  bool discontinuity=host&&(!wasHost||std::abs(beat-expectedHostBeat)>step*2);
  auto active=audibleLayers();
  for(int i=0;i<8;++i){size_t k=size_t(i);auto& c=controls[k];int type=int(c.instrument->load());auto rev=revision[k].load();
