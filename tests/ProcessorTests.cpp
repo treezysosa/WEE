@@ -11,7 +11,7 @@ struct TestPlayHead : juce::AudioPlayHead {
  PositionInfo position;
  juce::Optional<PositionInfo> getPosition() const override { return position; }
 };
-void runEditingTests();runRenderTests();void runEditingTests();
+void runRenderTests();void runEditingTests();
 int main(){juce::ScopedJuceInitialiser_GUI init;try{
  WeeProcessor p;p.setRateAndBufferSizeDetails(48000,256);p.prepareToPlay(48000,256);juce::AudioBuffer<float> buffer(2,256);juce::MidiBuffer midi;
  midi.addEvent(juce::MidiMessage::noteOn(1,69,(juce::uint8)110),0);p.processBlock(buffer,midi);require(energy(buffer)>0.001,"MIDI input must produce audible piano");
