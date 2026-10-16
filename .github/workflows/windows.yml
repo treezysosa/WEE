@@ -68,6 +68,8 @@ jobs:
           if ((Get-FileHash $installed).Hash -ne $sourceHash) { throw 'Installed binary differs from build' }
           ./dist/WEE-Windows-x64/Verify-WEE.ps1
           ./dist/WEE-Windows-x64/Install-WEE.ps1 -Replace
+          ./scripts/install-vst3.ps1 -Replace
+          ./dist/WEE-Windows-x64/Verify-WEE.ps1
           if (!(Get-ChildItem (Join-Path $env:CommonProgramFiles 'VST3') -Filter 'WEE.vst3.backup-*')) { throw 'Replacement backup missing' }
       - name: Upload Windows download
         uses: actions/upload-artifact@v4
