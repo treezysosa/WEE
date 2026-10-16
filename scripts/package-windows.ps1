@@ -9,6 +9,9 @@ if (Test-Path $package) { Remove-Item $package -Recurse -Force }
 New-Item $package -ItemType Directory -Force | Out-Null
 Copy-Item $bundle "$package/WEE.vst3" -Recurse -Force
 Copy-Item $standalone "$package/WEE.exe" -Force
+Copy-Item 'docs/WINDOWS-STARTUP.md' "$package/STARTUP-HELP.txt" -Force
+Copy-Item 'scripts/Start-WEE.cmd' "$package/Start-WEE.cmd" -Force
+Copy-Item 'scripts/Start-WEE.ps1' "$package/Start-WEE.ps1" -Force
 Copy-Item 'scripts/Install-WEE.ps1' "$package/Install-WEE.ps1" -Force
 Copy-Item 'scripts/InstallerCore.ps1' "$package/InstallerCore.ps1" -Force
 Copy-Item 'scripts/Verify-WEE.ps1' "$package/Verify-WEE.ps1" -Force

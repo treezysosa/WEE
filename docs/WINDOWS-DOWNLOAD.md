@@ -10,9 +10,7 @@ Manual installation: copy the entire WEE.vst3 folder into
 C:\Program Files\Common Files\VST3\
 Do not copy just the internal binary.
 
-Double-click WEE.exe for standalone testing; configure your audio device in its settings.
-If Windows reports a missing Visual C++ runtime, install Microsoft's x64 Visual C++ 2015-2022 Redistributable:
-https://aka.ms/vs/17/release/vc_redist.x64.exe
+Double-click WEE.exe normally for standalone testing; administrator access is not required. Configure your audio device in Options > Audio/MIDI Settings. Version 0.5.1 embeds the MSVC runtime; a separate Visual C++ runtime installer is not expected. If no window appears, run Start-WEE.cmd. It keeps its console open and writes a local diagnostic file under your temporary WEE-startup folder with the process exit/window result and available crash events. Share only the failure message first; the complete local log may contain Windows account paths. It uploads nothing.
 This development build is unsigned. SmartScreen may identify an unknown publisher.
 
 Phase 5 adds optimized event scheduling and editor caching, glossy animated buttons, output meters, note tooltips, a local SAVE REPORT, and staged checksum-verified installation with rollback. Run Verify-WEE.cmd to verify the package and installed plugin. Retained backups can be restored manually; see PHASE-5.txt. FL Studio manual testing remains unverified.

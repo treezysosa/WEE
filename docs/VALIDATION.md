@@ -1,3 +1,19 @@
+# Standalone startup update 0.5.1 — passed 2026-10-16
+
+- Build: https://github.com/treezysosa/WEE/actions/runs/38841213535
+- Compiled source: f52652860d3e332ba1d19c7dabbf1792cac72d85; later changes are documentation only.
+- MSVC x64 Release VST3 and standalone compiled with the static C++ runtime. dumpbin import checks passed for both binaries: no external MSVC runtime imports matched the check.
+- All six CTest suites passed in 14.83 seconds; installer recovery, packaged/developer install and checksum checks passed.
+- Real standalone launched on the Windows runner under both PowerShell 7 and Windows PowerShell. Both runs logged a visible WEE window, a responsive Windows-message check, survival of a three-second observation, and normal zero-exit-code shutdown.
+- Windows loaded the VST3 module and located GetPluginFactory in both sessions. This is not a full plugin validator or FL Studio test.
+- Download: https://github.com/treezysosa/WEE/actions/runs/38841213535/artifacts/12021278399
+- ZIP SHA-256: 68f41dc81dbd343c1d01cbe8a740b74bf6f45ef8ef01b88adc7b7a5da21e01ed
+- Expires 2026-11-15. Package includes Start-WEE.cmd/.ps1 and STARTUP-HELP.txt, plus the plugin, standalone and installer/verifier files.
+
+The user reported that the earlier WEE.exe showed no window even after the suggested runtime installation. That user-specific failure has not been reproduced or diagnosed conclusively. Static linking removes a deployment dependency; successful runner launch does not prove the user's underlying problem is repaired. The new launcher records process/window/exit-code results and available local Windows crash events to support the next diagnostic step. It requires no administrator access and uploads nothing. Logs may contain account paths; share the relevant FAIL line first.
+
+Physical audio devices, user security policies, Windows 10/11 desktop/high-DPI behavior, and FL Studio scan/load/playback still require manual verification. See WINDOWS-STARTUP.md. Existing plugin IDs and version 4 project-state format are unchanged.
+
 # Phase 5 validation — passed 2026-10-16
 
 - Windows build: https://github.com/treezysosa/WEE/actions/runs/38834778684

@@ -1,5 +1,7 @@
-# WEE — Phase 5 development build (0.5.0)
+# WEE — Phase 5 startup update (0.5.1)
 Windows-first JUCE VST3 instrument and standalone app. Eight generated musical layers, eight original synthesized instruments, nine styles, MIDI export, mixer/locks and exact generated-note state remain available.
+
+Version 0.5.1 embeds the Microsoft C++ runtime. Actual standalone visible-window, responsiveness and normal-shutdown checks now pass on a Windows runner under PowerShell 7 and Windows PowerShell. For a silent launch, extract the complete download and run Start-WEE.cmd normally; copy its FAIL line if unsuccessful. The cause of a user-specific startup failure is not yet established. See [startup help](docs/WINDOWS-STARTUP.md).
 
 Phase 5 adds binary-searched note schedules, cached piano-roll rendering, idle DSP/synth shortcuts, glossy animated buttons, output meters, note tooltips, working click-then-Delete selection, local diagnostic reports, and checksum-verified staged Windows updates with backups/rollback. Run Verify-WEE.cmd for a read-only integrity check. See [Phase 5 behavior and limits](docs/PHASE-5.md).
 
@@ -11,7 +13,7 @@ The FX / FLIP / WAV page renders real audio on a background worker. WEE FLIP off
 
 SAVE WAV exports the audible mix; EXPORT STEMS exports enabled audible layers separately; each row's WAV button renders that layer regardless of mute/enable. Export supports stereo 16-bit PCM, 24-bit PCM and actual 32-bit IEEE float WAV at the host sample rate (48 kHz fallback before the host supplies a rate). Main files always contain round(bars * 4 * 60 / BPM * sampleRate) frames. Optional tails go into separate files. Seamless mode uses instrument/effect warm-up plus 2 ms boundary fades without extending duration. Each export gets a fresh folder; DRAG WAV and OPEN EXPORT FOLDER provide FL Studio import paths.
 
-[Download WEE Phase 5 for Windows](https://github.com/treezysosa/WEE/actions/runs/38834778684/artifacts/12018846261) — sign in to GitHub, extract the entire ZIP, close FL Studio and run Install-WEE.cmd. Artifact retained until November 15, 2026.
+[Download WEE 0.5.1 for Windows](https://github.com/treezysosa/WEE/actions/runs/38841213535/artifacts/12021278399) — sign in to GitHub, extract the entire ZIP, close FL Studio and run Install-WEE.cmd. Artifact retained until November 15, 2026.
 
 Windows x64 Release VST3/standalone compilation, all six CTest suites and installer integrity/replacement/rollback checks passed on 2026-10-16. The processor suite includes real editing gestures, preset load/rejection, persistent undo/redo, older state migration, actual audio/WAV rendering, meters/diagnostics and 18 callback timing profiles. Installer recovery is checked in both 64-bit and 32-bit Windows PowerShell; packaged and developer entry points install and verify the real bundle. Portable composition/edit-bound checks also pass with sanitizers. See docs/PHASE-3.md for exact half-time semantics, render limits and known limitations. FL Studio manual compatibility remains unverified.
 
