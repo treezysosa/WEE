@@ -20,7 +20,7 @@ function Test-WeePackage {
   if ([IO.Path]::IsPathRooted($relative) -or $relative -match '(^|[\\/])\.\.([\\/]|$)' -or $relative.Contains(':')) { throw 'Unsafe checksum path.' }
   $file = [IO.Path]::GetFullPath((Join-Path $root $relative))
   if (!$file.StartsWith($root + [IO.Path]::DirectorySeparatorChar,[StringComparison]::OrdinalIgnoreCase) -or $entries.ContainsKey($file)) { throw 'Duplicate or unsafe checksum path.' }
-  if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-WeeFileHash -LiteralPath $file -Algorithm SHA256).Hash -ne $hash) { throw "Package verification failed: $relative" }
+  if (!(Test-Path -LiteralPath $file -PathType Leaf) -or (Get-WeeFileHash -LiteralPath $file).Hash -ne $hash) { throw "Package verification failed: $relative" }
   $entries[$file]=$hash
  }
  foreach ($file in (Get-ChildItem -LiteralPath (Join-Path $root 'WEE.vst3') -File -Recurse)) { if (!$entries.ContainsKey($file.FullName)) { throw 'Plugin contains a file missing from the manifest.' } }

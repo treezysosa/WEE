@@ -43,6 +43,13 @@ jobs:
           key: ${{ steps.cache.outputs.cache-primary-key }}
       - name: Run generation, MIDI, audio and state tests
         run: ctest --test-dir build -C Release --output-on-failure
+      - name: Record scheduler and callback profiles
+        if: always()
+        shell: pwsh
+        run: |
+          if (Test-Path 'build/Testing/Temporary/LastTest.log') {
+            Select-String -LiteralPath 'build/Testing/Temporary/LastTest.log' -Pattern 'PROFILE |100k dense blocks|PASS: real note' | ForEach-Object { Write-Host $_.Line }
+          }
       - name: Verify legacy 32-bit PowerShell installer recovery
         shell: pwsh
         run: |
