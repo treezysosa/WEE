@@ -2,9 +2,18 @@
 #include <juce_audio_utils/juce_audio_utils.h>
 #include "Music/Composition.h"
 #include "Instruments/Piano.h"
-class WeeProcessor : public juce::AudioProcessor {
+#include "Effects/Parameters.h"
+#include "Effects/Flip.h"
+struct WeeAudition {wee::StereoAudio original,flipped;double rate=48000,bpm=120;int bars=8;uint64_t token=0;};
+class WeeProcessor : public juce::AudioProcessor,private juce::AudioProcessorValueTreeState::Listener {
 public:
- WeeProcessor();
+ WeeProcessor(); ~WeeProcessor() override;
+ std::atomic<int> auditionMode{0}; // 0 live, 1 cached original, 2 cached FLIP
+ std::atomic<uint64_t> changeToken{1},clipToken{0};
+ double exportTempo() const; double exportRate() const{return preparedRate.load();}
+ bool auditionReady() const{return clipToken.load()==changeToken.load();}
+ void publishAudition(std::unique_ptr<WeeAudition>);
+ wee::EffectSettings effectSettings() const; wee::FlipSettings flipSettings() const;
  juce::AudioProcessorValueTreeState params;
  std::atomic<bool> preview{false}, unsupportedMeter{false};
  std::atomic<double> tempo{120};
@@ -21,7 +30,7 @@ public:
  juce::AudioProcessorEditor* createEditor() override; bool hasEditor() const override{return true;}
  const juce::String getName() const override{return "WEE";}
  bool acceptsMidi() const override{return true;} bool producesMidi() const override{return false;} bool isMidiEffect() const override{return false;}
- double getTailLengthSeconds() const override{return 3;}
+ double getTailLengthSeconds() const override;
  int getNumPrograms() override{return 1;} int getCurrentProgram() override{return 0;} void setCurrentProgram(int) override{}
  const juce::String getProgramName(int) override{return "Default";} void changeProgramName(int,const juce::String&) override{}
  void getStateInformation(juce::MemoryBlock&) override; void setStateInformation(const void*,int) override;
@@ -40,5 +49,12 @@ private:
  juce::SpinLock contentLock; wee::Arrangement content;
  double previewBeat=0,expectedHostBeat=0; bool wasPlaying=false,wasHost=false;
  std::atomic<uint32_t> seed{1};juce::SmoothedValue<float> gain;
+ wee::EffectChain effects;
+ std::array<std::atomic<float>*,10> effectRefs{};
+ std::atomic<float>* bpmParam=nullptr,*syncParam=nullptr,*gainParam=nullptr;
+ std::atomic<double> clipTempo{0},preparedRate{48000};std::atomic<bool> hostTempoAvailable{false};
+ juce::SpinLock auditionLock;std::unique_ptr<WeeAudition> audition;
+ juce::SmoothedValue<float> auditionBlend,auditionGate;double auditionBeat=0;
+ void parameterChanged(const juce::String&,float) override;
  int preparedBlock=512,playbackBars=8;
 };

@@ -1,10 +1,8 @@
 # Windows build
-Install Visual Studio 2022 with Desktop development with C++, Windows SDK, CMake 3.22+, and Git. Run `./build-windows.ps1` from PowerShell. Uses VS 17 2022, x64, Release and CTest. Supply `-JuceSourceDir C:\dependencies\JUCE` for an offline JUCE 8.0.6 checkout. JUCE is pinned to release 8.0.6; do not substitute an arbitrary checkout.
+Install Visual Studio 2022 Desktop development with C++, Windows SDK, CMake 3.22+ and Git. Run `./build-windows.ps1` from PowerShell. The script configures Visual Studio 17 2022 / x64, builds Release and runs CTest. Use `-JuceSourceDir C:\dependencies\JUCE` for an existing JUCE 8.0.6 checkout; default builds fetch that release.
 
-Expected output after a successful Windows build: `build/WEE_artefacts/Release/VST3/WEE.vst3`. Standalone: `build/WEE_artefacts/Release/Standalone/WEE.exe`.
+Output: `build/WEE_artefacts/Release/VST3/WEE.vst3` and `build/WEE_artefacts/Release/Standalone/WEE.exe`. Run administrator PowerShell `./install-vst3.ps1` to install from a source build. Close FL Studio first. Existing installations require `-Replace` and receive a timestamped backup. The downloaded package instead includes Install-WEE.cmd / Install-WEE.ps1 beside its ready-built WEE.vst3 folder.
 
-Close FL Studio, open administrator PowerShell, run `./install-vst3.ps1`. Existing installations require explicit `-Replace` and receive a timestamped backup. Installation failures are errors, never silent success.
+Portable tests without JUCE: `cmake -S . -B build-core -DWEE_BUILD_PLUGIN=OFF`, `cmake --build build-core`, `ctest --test-dir build-core --output-on-failure`.
 
-Portable core checks without JUCE: `cmake -S . -B build-core -DWEE_BUILD_PLUGIN=OFF`, `cmake --build build-core`, `ctest --test-dir build-core --output-on-failure`.
-
-Current verification: portable core tested on Linux; Windows Visual Studio 2022 x64 Release builds of VST3, standalone and processor tests passed remotely. All three CTest suites passed for Phase 2, including all-layer state/migration, timbre, audio/mixer and editor resize checks. Packaged installer initial installation and replacement backup passed on the Windows runner. See VALIDATION.md for the exact build and artifact. Standalone UI launch, UAC launcher interaction, visual high-DPI checks, and FL Studio tests remain manual checks. The editor construction/resize/destruction test itself passed automatically.
+Phase 3 verification: Windows Visual Studio 2022 x64 Release VST3 and standalone builds passed; all four CTest suites and installer/hash/backup checks passed. The instrument, state, WAV/FLIP rendering and worker tests run on the Windows runner. See VALIDATION.md for source commit, artifact and exact coverage. Standalone device/UI launch, UAC interaction, visual high-DPI checks and FL Studio manual compatibility remain unverified.

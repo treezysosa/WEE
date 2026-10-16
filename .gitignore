@@ -1,3 +1,6 @@
 build*/
 vendor/
 *.user
+dist/
+test-output/
+*.partial
