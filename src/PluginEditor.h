@@ -1,6 +1,7 @@
 #pragma once
 #include "PluginProcessor.h"
 #include "Export/Renderer.h"
+#include "UI/PianoRoll.h"
 class MidiDragButton : public juce::TextButton {
 public:
  MidiDragButton():juce::TextButton("DRAG MIDI"){}
@@ -60,7 +61,16 @@ private:
  using CA=juce::AudioProcessorValueTreeState::ComboBoxAttachment;using SA=juce::AudioProcessorValueTreeState::SliderAttachment;
  std::unique_ptr<CA>aStyle,aKey,aScale,aBars;std::unique_ptr<SA>aBpm,aVolume;std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>aSync;
  std::unique_ptr<juce::FileChooser> chooser;
- std::vector<juce::MemoryBlock>past,future;
+ WeePianoRoll pianoRoll;
+ juce::TextButton editPage{"EDIT / LIBRARY"},presetSave{"SAVE PRESET"},presetLoad{"LOAD"},presetFile{"OPEN .wee"},presetFolder{"PRESET FOLDER"},fitNotes{"FIT NOTES"};
+ juce::ComboBox library,grid,mood;
+ std::unique_ptr<CA> aMood;
+ juce::Label editHelp;
+ std::vector<juce::File> presetFiles;
+ bool editing=false;
+ void refreshLibrary();void savePreset();void loadPresetFile();void loadSelectedPreset();
+ static juce::File presetDirectory();
+
  int selectedLayer=0;juce::Rectangle<float> roll;
  void timerCallback()override;
  void exportMidi(bool,int layer=-1);

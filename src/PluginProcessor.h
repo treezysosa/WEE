@@ -21,6 +21,13 @@ public:
  std::atomic<int> generationStatus{0};
  static juce::String layerId(int,const juce::String&);
  bool generate(); bool regenerateLayer(int);
+ bool editLayer(int,const wee::Composition&);
+ void getContentState(juce::MemoryBlock&);
+ bool restoreContent(const void*,int);
+ void remember(juce::MemoryBlock);bool travelHistory(bool redo);
+ bool canUndo()const;bool canRedo()const;
+ bool loadPreset(const juce::MemoryBlock&);
+
  wee::Composition snapshot(); void replace(wee::Composition);
  wee::Arrangement snapshotArrangement(); void replaceArrangement(wee::Arrangement);
  std::array<bool,8> audibleLayers() const;
@@ -35,6 +42,9 @@ public:
  const juce::String getProgramName(int) override{return "Default";} void changeProgramName(int,const juce::String&) override{}
  void getStateInformation(juce::MemoryBlock&) override; void setStateInformation(const void*,int) override;
 private:
+ mutable juce::CriticalSection historyLock;
+ std::vector<juce::MemoryBlock> past,future;
+ static void trimHistory(std::vector<juce::MemoryBlock>&);
  static juce::AudioProcessorValueTreeState::ParameterLayout layout();
  struct LayerParameters {std::atomic<float>* enabled=nullptr,*mute=nullptr,*solo=nullptr,*volume=nullptr,*pan=nullptr,*instrument=nullptr,*locked=nullptr;};
  std::array<LayerParameters,8> controls;
