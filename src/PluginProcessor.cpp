@@ -58,13 +58,14 @@ void WeeProcessor::replaceArrangement(wee::Arrangement a){
 }
 void WeeProcessor::replace(wee::Composition c){auto a=wee::generateArrangement(c.settings);a.layers[0]=std::move(c);replaceArrangement(std::move(a));}
 bool WeeProcessor::generate(){
+ if(unsupportedMeter.load()){generationStatus=3;return false;}
  wee::Settings s;s.key=int(*params.getRawParameterValue("key"));s.scale=int(*params.getRawParameterValue("scale"));s.style=int(*params.getRawParameterValue("style"));s.bars=*params.getRawParameterValue("bars")>0?16:8;s.bpm=bpmParam->load();
  auto old=snapshotArrangement();bool anyLock=false;for(auto& c:controls)anyLock=anyLock||c.locked->load()>0.5f;
  if(anyLock&&!wee::sameHarmony(s,old.context)){generationStatus=1;return false;}
  s.seed=seed.fetch_add(1);auto a=wee::generateArrangement(s);for(int i=0;i<8;++i)if(controls[size_t(i)].locked->load()>0.5f)a.layers[size_t(i)]=old.layers[size_t(i)];
  replaceArrangement(std::move(a));generationStatus=0;return true;
 }
-bool WeeProcessor::regenerateLayer(int i){if(i<0||i>=8)return false;if(controls[size_t(i)].locked->load()>0.5f){generationStatus=2;return false;}
+bool WeeProcessor::regenerateLayer(int i){if(unsupportedMeter.load()){generationStatus=3;return false;}if(i<0||i>=8)return false;if(controls[size_t(i)].locked->load()>0.5f){generationStatus=2;return false;}
  auto a=snapshotArrangement();auto s=a.context;s.seed=seed.fetch_add(1);auto layer=wee::generateLayer(s,i);
  {const juce::SpinLock::ScopedLockType l(contentLock);content.layers[size_t(i)]=std::move(layer);++revision[size_t(i)];}
  ++changeToken;auditionMode=0;generationStatus=0;updateHostDisplay(juce::AudioProcessorListener::ChangeDetails{}.withNonParameterStateChanged(true));return true;

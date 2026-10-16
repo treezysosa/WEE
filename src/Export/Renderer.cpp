@@ -17,6 +17,7 @@ std::filesystem::path native(const juce::File& file){
 float peak(const wee::StereoAudio&a){float p=0;for(auto& c:a.channels)for(float value:c){if(!std::isfinite(value))throw std::runtime_error("Non-finite rendered sample");p=std::max(p,std::abs(value));}return p;}
 }
 WeeRenderRequest captureRender(WeeProcessor&p){
+ if(p.unsupportedMeter.load())throw std::runtime_error("WEE supports 4/4 only. Change the host time signature before rendering.");
  WeeRenderRequest q;q.token=p.changeToken.load();p.getStateInformation(q.state);q.rate=p.exportRate();
  auto xml=juce::AudioProcessor::getXmlFromBinary(q.state.getData(),int(q.state.getSize()));if(!xml)throw std::runtime_error("Cannot capture render state");auto tree=juce::ValueTree::fromXml(*xml);
  auto get=[&](const char*id){return float(tree.getChildWithProperty("id",id)["value"]);};
@@ -66,7 +67,7 @@ void WeeRenderJob::setMessage(juce::String text){const std::lock_guard<std::mute
 juce::String WeeRenderJob::message()const{const std::lock_guard<std::mutex>lock(resultLock);return status;}
 juce::File WeeRenderJob::folder()const{const std::lock_guard<std::mutex>lock(resultLock);return resultFolder;}
 juce::StringArray WeeRenderJob::files()const{const std::lock_guard<std::mutex>lock(resultLock);return resultFiles;}
-void WeeRenderJob::start(WeeRenderRequest q){if(running)return;if(worker.joinable())worker.join();cancelFlag=false;completed=0;running=true;setMessage("Rendering a snapshot in the background...");worker=std::thread([this,q=std::move(q)]()mutable{run(std::move(q));});}
+void WeeRenderJob::start(WeeRenderRequest q){if(running)return;if(worker.joinable())worker.join();cancelFlag=false;completed=0;running=true;setMessage("Rendering a snapshot in the background...");try{worker=std::thread([this,q=std::move(q)]()mutable{run(std::move(q));});}catch(const std::exception&e){running=false;setMessage("Could not start render worker: "+juce::String(e.what()));}}
 void WeeRenderJob::run(WeeRenderRequest q){
  juce::File partial;
  try{
