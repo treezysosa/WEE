@@ -1,3 +1,34 @@
+# Phase 5 validation — passed 2026-10-16
+
+- Windows build: https://github.com/treezysosa/WEE/actions/runs/38834778684
+- Compiled source: e2e6b8284eec8432d725b805f4b768cc6e7cf355 (later changes are documentation only).
+- Windows Server 2022 GitHub runner, MSVC 2022 x64 Release, C++20, JUCE 8.0.6; plugin version 0.5.0. Plugin identity/parameter order and version 4 state format retained.
+- VST3 and standalone compiled. All 6 CTest suites passed: composition_midi, layer_harmony_midi, dsp_flip_wav, schedule_reference, installer_recovery, processor_audio_state.
+- Scheduler checks independently compare the prior full scan against event timelines across 8/16 bars, 8/44.1/48/96 kHz, five tempos, four block sizes and ten host positions including negatives/wraps. Exact-offset cancellation and same-pitch boundary regressions pass. Dense 2,048-note timeline: 100,000 two-stream lookups measured 4.4307 ms (26,040 emitted events; descriptive timing, no timing gate).
+- Gesture tests simulate mouse down/up and keys on the real piano-roll component: click selection survives release, Delete removes the note, Escape cancels a draft, stale selection preserves replacement content, cached display follows revisions, and editing one layer leaves unrelated voice revisions unchanged. Existing editor lifecycle, state/history/preset, musical lock, MIDI, actual synthesis/effects and WAV/FLIP/stem tests pass.
+- Meters record actual output; local diagnostic report fields tested. 18 callback profiles cover eight enabled layers at 44.1/48/96 kHz and 64/256/1024 samples, effects off/on. Audio is finite and audible. Short profiles use 180 callbacks, excluding the first 20; this is not worst-case/full-loop/128-voice/device/DAW performance certification.
+
+Representative callback measurements in microseconds on this runner:
+
+| Rate | Block | Effects | Median | p99 | Buffer budget |
+|---|---:|---|---:|---:|---:|
+| 48 kHz | 64 | On | 62.5 | 91.0 | 1333.3 |
+| 48 kHz | 256 | Off | 248.4 | 293.9 | 5333.3 |
+| 48 kHz | 256 | On | 296.5 | 363.1 | 5333.3 |
+| 96 kHz | 64 | On | 61.4 | 78.3 | 666.7 |
+| 96 kHz | 1024 | On | 1166.9 | 1345.9 | 10666.7 |
+
+- Windows PowerShell installer tests pass in both 64-bit CTest and a separate 32-bit process. They cover manifest integrity/traversal rejection, fresh install, unapproved replacement refusal, staging-copy failure, failed publication with rollback, successful replacement/backup bytes and staging cleanup.
+- Actual VST3 installed at C:\Program Files\Common Files\VST3\WEE.vst3. Packaged installer replacement and developer install-vst3.ps1 replacement both passed; retained backups and installed file checksums verified by Verify-WEE.ps1.
+- Download: https://github.com/treezysosa/WEE/actions/runs/38834778684/artifacts/12018846261
+- ZIP SHA-256: 5bf09b49e51c9c6f6796d4e1529380dbe04362c9f2c161ded5de2a194a9e55b8
+- Expires 2026-11-15. Includes VST3, standalone, installer/core/verifier, instructions, source/license references and checksums.
+- Local GCC: portable composition/layer/DSP and scheduler suites pass; scheduler passes strict warnings and AddressSanitizer/UndefinedBehaviorSanitizer with sandbox leak detection disabled. Processor/JUCE code was not sanitizer-instrumented.
+
+FL Studio interactive scan/playback/import/project reopening, Windows 10/11 physical audio-device/driver/high-DPI behavior, actual mouse interaction/hover rendering, native file drags/dialogs, UAC launcher prompts, loaded-plugin file locking and desktop backup recovery remain unverified. Simulated gesture tests and runner filesystem installation do not complete those manual gates. Follow FL-STUDIO-SETUP.md and save a local diagnostic report for failures.
+
+Earlier installer runs failed on unavailable legacy Get-FileHash discovery and a leftover argument during its replacement; both were corrected before the successful build above. The downloadable artifact is from the final passing run. See PHASE-5.md for remaining production/performance/editor work and synchronization limits.
+
 # Phase 4 validation — passed 2026-10-16
 
 - Windows build: https://github.com/treezysosa/WEE/actions/runs/38831830185

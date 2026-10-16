@@ -52,10 +52,12 @@ wee::FlipSettings WeeProcessor::flipSettings()const{auto get=[&](const char*id){
 void WeeProcessor::publishAudition(std::unique_ptr<WeeAudition> pair){if(!pair||pair->original.size()==0||pair->original.size()!=pair->flipped.size())return;std::unique_ptr<WeeAudition> old;{const juce::SpinLock::ScopedLockType lock(auditionLock);if(pair->token!=changeToken.load())return;old=std::move(audition);audition=std::move(pair);clipTempo=audition->bpm;clipToken=audition->token;}}
 
 wee::Arrangement WeeProcessor::snapshotArrangement(){const juce::SpinLock::ScopedLockType l(contentLock);return content;}
+wee::Composition WeeProcessor::snapshotLayer(int i){const juce::SpinLock::ScopedLockType l(contentLock);return content.layers[size_t(std::clamp(i,0,7))];}
 wee::Composition WeeProcessor::snapshot(){const juce::SpinLock::ScopedLockType l(contentLock);return content.layers[0];}
 void WeeProcessor::replaceArrangement(wee::Arrangement a){
+ std::array<wee::LayerSchedule,8> prepared;for(int i=0;i<8;++i)prepared[size_t(i)]=wee::makeSchedule(a.layers[size_t(i)]);
  ++changeToken;auditionMode=0;
- {const juce::SpinLock::ScopedLockType l(contentLock);std::swap(content,a);for(auto& r:revision)++r;}
+ {const juce::SpinLock::ScopedLockType l(contentLock);std::swap(content,a);schedules.swap(prepared);for(auto& r:revision)++r;}
  updateHostDisplay(juce::AudioProcessorListener::ChangeDetails{}.withNonParameterStateChanged(true));
 }
 void WeeProcessor::replace(wee::Composition c){auto a=wee::generateArrangement(c.settings);a.layers[0]=std::move(c);replaceArrangement(std::move(a));}
@@ -68,8 +70,8 @@ bool WeeProcessor::generate(){
  replaceArrangement(std::move(a));generationStatus=0;return true;
 }
 bool WeeProcessor::regenerateLayer(int i){if(unsupportedMeter.load()){generationStatus=3;return false;}if(i<0||i>=8)return false;if(controls[size_t(i)].locked->load()>0.5f){generationStatus=2;return false;}
- auto a=snapshotArrangement();auto s=a.context;s.seed=seed.fetch_add(1);auto layer=wee::generateLayer(s,i);
- {const juce::SpinLock::ScopedLockType l(contentLock);content.layers[size_t(i)]=std::move(layer);++revision[size_t(i)];}
+ auto a=snapshotArrangement();auto s=a.context;s.seed=seed.fetch_add(1);auto layer=wee::generateLayer(s,i);auto prepared=wee::makeSchedule(layer);
+ {const juce::SpinLock::ScopedLockType l(contentLock);std::swap(content.layers[size_t(i)],layer);std::swap(schedules[size_t(i)],prepared);++revision[size_t(i)];}
  ++changeToken;auditionMode=0;generationStatus=0;updateHostDisplay(juce::AudioProcessorListener::ChangeDetails{}.withNonParameterStateChanged(true));return true;
 }
 std::array<bool,8> WeeProcessor::audibleLayers() const {
@@ -77,8 +79,9 @@ std::array<bool,8> WeeProcessor::audibleLayers() const {
  std::array<bool,8> active{};for(int i=0;i<8;++i){auto& c=controls[size_t(i)];active[size_t(i)]=c.enabled->load()>0.5f&&c.mute->load()<0.5f&&(!solo||c.solo->load()>0.5f);}return active;
 }
 void WeeProcessor::prepareToPlay(double sr,int block){
+ for(auto& peak:meterPeak)peak.store(0);
  preparedRate=sr;++changeToken;auditionMode=0;effects.prepare(sr);auditionBlend.reset(sr,0.02);auditionBlend.setCurrentAndTargetValue(0);auditionGate.reset(sr,0.02);auditionGate.setCurrentAndTargetValue(0);auditionBeat=0;
- preparedBlock=std::max(1,block);for(int i=0;i<8;++i){engines[size_t(i)].setCurrentPlaybackSampleRate(sr);audio[size_t(i)].setSize(1,preparedBlock);events[size_t(i)].ensureSize(65536);left[size_t(i)].reset(sr,0.02);right[size_t(i)].reset(sr,0.02);left[size_t(i)].setCurrentAndTargetValue(0);right[size_t(i)].setCurrentAndTargetValue(0);}
+ preparedBlock=std::max(1,block);reportedBlock=preparedBlock;for(int i=0;i<8;++i){engines[size_t(i)].setCurrentPlaybackSampleRate(sr);audio[size_t(i)].setSize(1,preparedBlock);events[size_t(i)].ensureSize(65536);left[size_t(i)].reset(sr,0.02);right[size_t(i)].reset(sr,0.02);left[size_t(i)].setCurrentAndTargetValue(0);right[size_t(i)].setCurrentAndTargetValue(0);}
  gain.reset(sr,0.02);gain.setCurrentAndTargetValue(gainParam->load());previewBeat=0;wasPlaying=wasHost=false;previousAudible.fill(false);previousInstrument.fill(-1);
 }
 void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffer& incoming){
@@ -102,12 +105,13 @@ void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffe
   if(active[0])events[0].addEvents(incoming,start,count,-start);
   if(playing){juce::SpinLock::ScopedTryLockType lock(contentLock);if(lock.isLocked()){
    bars=playbackBars=content.context.bars;double loop=bars*4,begin=beat+start*step,end=begin+count*step;
-   for(int i=0;i<8;++i)if(active[size_t(i)])for(int off=1;off>=0;--off)for(const auto& n:content.layers[size_t(i)].notes){
-    double event=n.beat+(off?n.length:0),at=event+std::ceil((begin-event)/loop)*loop;
-    while(at<end){int sample=juce::jlimit(0,count-1,int(std::lround((at-begin)/step)));events[size_t(i)].addEvent(off?juce::MidiMessage::noteOff(i+1,n.pitch):juce::MidiMessage::noteOn(i+1,n.pitch,(juce::uint8)n.velocity),sample);at+=loop;}
+   for(int i=0;i<8;++i)if(active[size_t(i)])for(int off=1;off>=0;--off){const auto& stream=off?schedules[size_t(i)].off:schedules[size_t(i)].on;
+    wee::scheduleRange(stream,begin,end,loop,[&](const wee::ScheduledEvent& e,double at){int sample=juce::jlimit(0,count-1,int(std::lround((at-begin)/step)));events[size_t(i)].addEvent(off?juce::MidiMessage::noteOff(i+1,e.pitch):juce::MidiMessage::noteOn(i+1,e.pitch,(juce::uint8)e.velocity),sample);});
    }
   }else for(auto& synth:engines)synth.allNotesOff(0,true);}
-  for(int i=0;i<8;++i){size_t k=size_t(i);audio[k].clear();engines[k].renderNextBlock(audio[k],events[k],0,count);const float* samples=audio[k].getReadPointer(0);
+  for(int i=0;i<8;++i){size_t k=size_t(i);bool voices=false;for(int voice=0;voice<engines[k].getNumVoices();++voice)voices|=engines[k].getVoice(voice)->isVoiceActive();
+   if(events[k].isEmpty()&&!voices){left[k].skip(count);right[k].skip(count);continue;}
+   audio[k].clear();engines[k].renderNextBlock(audio[k],events[k],0,count);const float* samples=audio[k].getReadPointer(0);
    for(int t=0;t<count;++t){output.addSample(0,start+t,samples[t]*left[k].getNextValue());output.addSample(1,start+t,samples[t]*right[k].getNextValue());}
   }
  }
@@ -123,7 +127,8 @@ void WeeProcessor::processBlock(juce::AudioBuffer<float>& output,juce::MidiBuffe
    }
   }else output.clear();
  }
- gain.setTargetValue(gainParam->load());for(int t=0;t<output.getNumSamples();++t){float g=gain.getNextValue();for(int ch=0;ch<output.getNumChannels();++ch)output.getWritePointer(ch)[t]*=g;}incoming.clear();
+ gain.setTargetValue(gainParam->load());std::array<float,2> peaks{};for(int t=0;t<output.getNumSamples();++t){float g=gain.getNextValue();for(int ch=0;ch<2;++ch){auto& value=output.getWritePointer(ch)[t];value*=g;peaks[size_t(ch)]=std::max(peaks[size_t(ch)],std::abs(value));}}
+ for(int ch=0;ch<2;++ch){auto& peak=meterPeak[size_t(ch)];float previous=peak.load();while(previous<peaks[size_t(ch)]&&!peak.compare_exchange_weak(previous,peaks[size_t(ch)])){} }incoming.clear();
 }
 namespace {
 void writeSettings(juce::ValueTree& v,const wee::Settings&s){v.setProperty("bars",s.bars,nullptr);v.setProperty("key",s.key,nullptr);v.setProperty("scale",s.scale,nullptr);v.setProperty("style",s.style,nullptr);v.setProperty("seed",juce::int64(s.seed),nullptr);v.setProperty("bpm",s.bpm,nullptr);v.setProperty("mood",s.mood,nullptr);}
@@ -154,9 +159,10 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter(){return new WeeProcessor
 bool WeeProcessor::editLayer(int index,const wee::Composition& edited){
  if(index<0||index>=8||unsupportedMeter||!wee::validNotes(edited))return false;
  if(controls[size_t(index)].locked->load()>0.5f){generationStatus=2;return false;}
- auto a=snapshotArrangement();if(!wee::sameHarmony(a.context,edited.settings))return false;
- if(a.layers[size_t(index)].notes==edited.notes)return false;
- a.layers[size_t(index)]=edited;wee::sort(a.layers[size_t(index)]);replaceArrangement(std::move(a));generationStatus=0;return true;
+ auto layer=edited;wee::sort(layer);auto prepared=wee::makeSchedule(layer);size_t i=size_t(index);
+ {const juce::SpinLock::ScopedLockType l(contentLock);if(!wee::sameHarmony(content.context,edited.settings)||content.layers[i].notes==edited.notes)return false;
+ std::swap(content.layers[i],layer);std::swap(schedules[i],prepared);++revision[i];}
+ ++changeToken;auditionMode=0;generationStatus=0;updateHostDisplay(juce::AudioProcessorListener::ChangeDetails{}.withNonParameterStateChanged(true));return true;
 }
 
 void WeeProcessor::trimHistory(std::vector<juce::MemoryBlock>& entries){
@@ -186,4 +192,14 @@ void WeeProcessor::setStateInformation(const void* data,int size){
  for(int direction=0;direction<2;++direction){auto list=history.getChildWithName(direction==0?"Past":"Future");if(list.getNumChildren()>8)continue;auto& entries=direction==0?past:future;
  for(auto entry:list){juce::MemoryBlock bytes;if(!entry.hasType("Entry")||entry["data"].toString().length()>3*1024*1024||!bytes.fromBase64Encoding(entry["data"].toString()))continue;
  auto inner=getXmlFromBinary(bytes.getData(),int(bytes.getSize()));if(!inner||!inner->hasTagName("WEE")||inner->getChildByName("History"))continue;entries.push_back(std::move(bytes));}trimHistory(entries);}
+}
+
+juce::String WeeProcessor::diagnosticReport(){
+ auto a=snapshotArrangement();auto active=audibleLayers();juce::String report="WEE " JucePlugin_VersionString " — local diagnostic report\n";
+ report+="Rate: "+juce::String(exportRate(),1)+" Hz; maximum prepared block: "+juce::String(reportedBlock.load())+" samples\n";
+ report+="Tempo: "+juce::String(exportTempo(),3)+" BPM; host sync: "+juce::String(syncParam->load()>0.5f?"on":"off")+"\n";
+ report+="Meter: "+juce::String(unsupportedMeter.load()?"unsupported (requires 4/4)":"4/4 or not supplied by host")+"\n";
+ report+="Bars: "+juce::String(a.context.bars)+"; key class: "+juce::String(a.context.key)+"; scale: "+juce::String(a.context.scale==0?"minor":"major")+"; style: "+wee::styleNames[size_t(a.context.style)]+"\n";
+ for(int i=0;i<8;++i)report+=juce::String(wee::layerNames[size_t(i)])+": "+juce::String(int(a.layers[size_t(i)].notes.size()))+" notes; seed "+juce::String(a.layers[size_t(i)].settings.seed)+"; audible "+juce::String(active[size_t(i)]?"yes":"no")+"\n";
+ report+="No user paths or audio are collected. This file stays on your computer.\nFL Studio interactive compatibility is not certified by the automated Windows build.\nManual test checklist: https://github.com/treezysosa/WEE/blob/wee/phase-5/docs/FL-STUDIO-SETUP.md\n";return report;
 }
