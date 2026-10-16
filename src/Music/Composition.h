@@ -38,9 +38,9 @@ inline Composition generate(Settings input){
   if((int(v%100)<rest && t!=0)||(s.style==7 && bar%2==1 && t>4))continue;
   int root=chord(s,bar);int degree=t%4==0?root:motif[size_t((t+bar%2*4)%8)];
   // Repeat a two-bar hook; the response rises on alternate phrases.
-  if(bar%4==2 && t%4==2)degree=std::min(9,degree+2);
   if(bar%4==3 && t==steps-1)degree=bar%8==7?0:root;
   if(bar%4==2 && t%4!=0)degree=std::clamp(previous+int(v%3)-1,0,9);
+  if(bar%4==2 && t%4==2)degree=std::min(9,degree+2);
   previous=degree;
   double timing=t==0?0:(int(rng.next()%9)-4)*0.002;
   if(s.style==8 && t%2)timing+=0.065;

@@ -39,7 +39,7 @@ WeeEditor::WeeEditor(WeeProcessor& processor):AudioProcessorEditor(processor),p(
  editHelp.setJustificationType(juce::Justification::centredLeft);
  mood.addItemList({"Balanced phrasing","Reflective phrasing","Energetic phrasing"},1);aMood=std::make_unique<CA>(p.params,"mood",mood);mood.setTooltip("Changes lead/counter melody density and velocity on the next GENERATE. Existing notes stay until generated.");
  grid.addItemList({"1/4 note grid","1/8 note grid","1/16 note grid"},1);grid.setSelectedId(2);grid.onChange=[this]{pianoRoll.grid=grid.getSelectedId()==1?1.0:grid.getSelectedId()==3?0.25:0.5;};
- editPage.onClick=[this]{editing=true;setPage(false);resized();};
+ editPage.onClick=[this]{refreshLibrary();editing=true;setPage(false);resized();};
  createPage.onClick=[this]{editing=false;setPage(false);resized();};effectsPage.onClick=[this]{editing=false;setPage(true);resized();};
  pianoRoll.onCommit=[this](int layer,const wee::Composition& c){juce::MemoryBlock before;p.getContentState(before);if(p.editLayer(layer,c))p.remember(std::move(before));};
  presetSave.onClick=[this]{savePreset();};presetLoad.onClick=[this]{loadSelectedPreset();};presetFile.onClick=[this]{loadPresetFile();};presetFolder.onClick=[] {auto dir=presetDirectory();if(dir.createDirectory().wasOk())dir.startAsProcess();};fitNotes.onClick=[this]{pianoRoll.fit();};
