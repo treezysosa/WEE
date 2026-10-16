@@ -58,6 +58,11 @@ jobs:
       - name: Verify real standalone window and VST3 module loading
         shell: pwsh
         run: ./tests/WindowsStartup.ps1
+      - name: Verify launch diagnostics in Windows PowerShell
+        shell: pwsh
+        run: |
+          & "$env:SystemRoot/System32/WindowsPowerShell/v1.0/powershell.exe" -NoProfile -ExecutionPolicy Bypass -File ./tests/WindowsStartup.ps1
+          if ($LASTEXITCODE -ne 0) { throw 'Windows PowerShell startup checks failed' }
       - name: Verify no external MSVC runtime dependency
         shell: pwsh
         run: |
